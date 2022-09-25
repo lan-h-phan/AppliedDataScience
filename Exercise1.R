@@ -179,7 +179,8 @@ pisa[,
 #Student expected occupational status (BSMJ), 
 #Out of school study time (OUTHOURS)
 #Home Educational Resources (HEDRES)
-#Family Wealth (WEALTH) and Index of economic, social, and cultural status (ESCS)
+#Family Wealth (WEALTH) 
+
 
 pisa[,
      .(ExpectedStatus = mean(BSMJ, na.rm = TRUE),
@@ -200,20 +201,66 @@ pisa[,
 ]
 
 #P5 Calculate correlations between these variables and sci_car
+pisa[,
+      .(ExpectedStatus = cor(sci_car, BSMJ, use = "na.or.complete"),
+        OutsideStudy = cor(sci_car, OUTHOURS, use = "na.or.complete"),
+        HomeRes = cor(sci_car, HEDRES, use = "na.or.complete"),
+        Wealth = cor(sci_car, WEALTH, use = "na.or.complete"))]
+
 
 #P6 Create new variables
 # 6a. Discretize the math and reading variables using the OECD means (490 for math and 493) 
 # and code them as 1 (at or above the mean) and -1 (below the mean), 
 # but do in the data.table way without using the $ operator.
 
+pisa[, 
+     "mathfac" := sapply(math,
+                         function(x){
+                           if(is.na(x)) NA
+                           else if (x >= 490) 1L
+                           else if (x < 490) -1L
+                         })]
+
+pisa[, 
+     "readfac" := sapply(reading,
+                         function(x){
+                           if(is.na(x)) NA
+                           else if (x >= 493) 1L
+                           else if (x < 493) -1L
+                         })]
+
+
 #6b. Calculate the correlation between these variables and the list of variables above.
+pisa[,
+     .(ExpectedStatusM = cor(mathfac, BSMJ, use = "na.or.complete"),
+       OutsideStudyM = cor(mathfac, OUTHOURS, use = "na.or.complete"),
+       HomeResM = cor(mathfac, HEDRES, use = "na.or.complete"),
+       WealthM = cor(mathfac, WEALTH, use = "na.or.complete"),
+       ExpectedStatusR = cor(readfac, BSMJ, use = "na.or.complete"),
+       OutsideStudyR = cor(readfac, OUTHOURS, use = "na.or.complete"),
+       HomeResR = cor(readfac, HEDRES, use = "na.or.complete"),
+       WealthR = cor(readfac, WEALTH, use = "na.or.complete"))]
+
 
 #P7 Chain together a set of operations
 #For example, create an intermediate variable that is the average of JOYSCIE and INTBRSCI, 
 #and then calculate the mean by country by sci_car through chaining
 
+pisa[,
+     "lovescience" := ((JOYSCIE + INTBRSCI)/2)
+     ][,
+       .(sci_car = mean(sci_car, na.rm = TRUE)),
+       by = .(CNTRYID)]
+
 #P8 Transform variables
-#specifically recode MISCED and FISCED from char- acters to numeric variables.
+#specifically recode MISCED and FISCED from characters to numeric variables.
+ParentEdu = c('MISCED', 'FISCED')
+pisa[,
+     (ParentEdu) := lapply(.SD, as.numeric), .SDcols = ParentEdu
+     ][,
+       .(class(MISCED),
+         class(FISCED))]
+
 
 #P9 Examine other variables in the pisa data set 
 # that you think might be predictive of PA032Q03TA.
