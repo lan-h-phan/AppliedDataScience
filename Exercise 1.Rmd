@@ -791,7 +791,6 @@ Some common mistakes the diagnostics report will reveal are:
 ## Chapter 4
 
 ```{r}
-install.packages("data.table")
 library(data.table)
 ```
 
