@@ -1,0 +1,375 @@
+---
+title: "Exercise 5"
+author: "Jonathan Beltran Alvarado, Lan Phan, Angelica Leon"
+output: html_document
+date: "2022-12-3"
+---
+
+## Part 1
+
+Using the IMDB movie review database, recreate the correlated topic model output and markdown of the random sample of 100 positive reviews from the IMDB movie review dataset from the Bowers CTM markdown example provided as a reading for the CTM section of the course.
+
+```{r setup}
+
+#install.packages("textstem")
+#install.packages("readtext")
+
+library(topicmodels)
+library(tm)
+library(tidyverse)
+library(tidytext)
+library(tidyr)
+library(slam)
+library(ggrepel)
+library(MASS)
+library(textstem)
+library(readtext)
+```
+
+```{r}
+data_dir <- "/Users/lanphan/Desktop/aclImdb/test/pos" #pos reviews
+data_big <- readtext(paste0(data_dir, "/*.txt"), encoding = "UTF-8")
+View(data_big)
+dim(data_big)
+```
+
+
+```{r}
+#Random sample of 100 rows
+data <- sample_n(data_big, 100)
+
+head(data)
+View(data)
+```
+
+
+```{r}
+#Since topicmodels and tm needs a very specific type of data  (DTM), the following code creates the data matrix required:
+corpus <- Corpus(VectorSource(data$text))
+corpus
+```
+
+```{r}
+text_DTM <- DocumentTermMatrix(corpus,control = list(stemming=TRUE, stopwords = TRUE, minWordLength = 3, 
+                                                     removeNumbers = TRUE, removePunctuation = TRUE))
+text_DTM
+
+dim(text_DTM)
+
+term_tfidf <- tapply(text_DTM$v / row_sums(text_DTM)[text_DTM$i], text_DTM$j, mean) * log2(nDocs(text_DTM)/col_sums(text_DTM > 0))
+summary(term_tfidf)
+```
+
+```{r}
+plot(density(term_tfidf))
+```
+
+```{r}
+#median is 0.46; rounded up that's 0.5, but since rule of thumb is 0.4 let's use that for now. 
+
+alpha <- 0.04
+text_DTM_trimmed <- text_DTM[row_sums(text_DTM) > 0, term_tfidf >= alpha]
+dim(text_DTM_trimmed)
+
+```
+
+
+```{r}
+#10-fold Cross validation
+control_CTM_VEM <- list(
+  estimate.beta = TRUE, verbose = 0, prefix = tempfile(), save = 0, keep = 0,
+  seed = as.integer(Sys.time()), nstart=1L, best = TRUE,
+  var = list(iter.max=100, tol=10^-6),
+  em = list(iter.max=500, tol=10^-4),
+  cg = list(iter.max=100, tol=10^5)
+)
+
+# use 10-fold CV to determine k!
+# randomly divide the data into 10 folds.
+
+set.seed(100)
+topics <- c(2, 3, 4, 5, 6, 7, 8, 9, 10, 15) ##set k equals to 2 3 4 5 6 7 8 9 10 15.
+seed <- 2
+D <- length(data$text) 
+folding <- sample(rep(seq_len(10), ceiling(D))[seq_len(D)])
+table(folding)
+```
+
+```{r}
+#This takes time to load; took almost 30 minutes for me!
+#Loop to automatically output the perplexity
+perp_by_col <- vector()
+for (k in topics) {
+  perp_by_row <- vector()
+  for (chain in seq_len(10)) {
+    training <- CTM(text_DTM_trimmed[folding != chain,], k = k,
+                    control = control_CTM_VEM)
+    testing <- CTM(text_DTM_trimmed[folding == chain,], model = training,
+                   control = control_CTM_VEM)
+    perp_by_row <- rbind(perp_by_row, perplexity(testing))
+  }
+  perp_by_col <- cbind(perp_by_col, perp_by_row)
+}
+```
+
+```{r}
+#Plotting perplexity
+transpose <- t(perp_by_col)
+matplot(transpose, type = "l", col = rainbow(9), lty = 2, lwd = 2, ylab = "Perplexity", xlab = "K", main = "CTM-10-fold cross validation", xaxt="n")
+axis(1, at=1:10, labels = c("k=2", "k=3", "k=4", "k=5", "k=6", "k=7", "k=8", "k=9", "k=10", "k=15"), cex=0.5)
+
+perp_by_col_mean <- colMeans(perp_by_col)
+
+lines(perp_by_col_mean, col = "black", lwd = 4, lty = 1)
+led <- c("fold=2", "fold=3", "fold=4", "fold=5", "fold=6", "fold=7", "fold=8", "fold=9", "fold=10", "Average")
+legend("topright", led, lwd = 2, lty = 2, col = c(rainbow(9), 'black'), cex = 0.65)
+
+abline(v = 4, col = "gray60", lty = 2)
+
+```
+
+```{r}
+#Average Perplexity
+{plot(perp_by_col_mean, pch = 20, ylab = 'Perplexity', xlab = "K", main = "CTM-10-fold cross validation", 
+      xaxt = "n") 
+  axis(1, at = 1:10, labels = c("k=2","k=3","k=4","k=5","k=6","k=7","k=8","k=9","k=10","k=15"), cex = 0.5)
+  lines(perp_by_col_mean, lwd = 1, lty = 2, col = "red")}
+```
+
+If we look at the plot, it seems that there are two possible elbows; k=7 or k=10. Let's go with k=10. 
+
+```{r}
+#10 topic correlated topic model
+control_CTM_VEM1 <- list(
+  estimate.beta = TRUE, verbose=0, prefix=tempfile(),save=0,keep=0,
+  seed=1421313709,nstart=1L,best=TRUE,
+  var=list(iter.max=500,tol=10^-6),
+  em=list(iter.max=1000,tol=10^-4),
+  cg=list(iter.max=500,tol=10^5)
+)
+
+CTM3 <- CTM(text_DTM_trimmed, k = 10, control = control_CTM_VEM1) #k=10
+CTM3
+```
+
+```{r}
+#A CTM_VEM topic model with 10 topics.
+
+#Topics
+topics3 <- posterior(CTM3)$topics
+
+#the probability of each document info fits into each of the topics
+topics3 <- as.data.frame(topics3)
+rownames(topics3) <- data$name
+print(topics3)
+```
+
+
+```{r}
+#Each document is assigned to one of the topics.
+main_topic3 <- as.data.frame(topics(CTM3))
+rownames(main_topic3) <- data$doc_id
+colnames(main_topic3) <- "Main_Topic"
+print(main_topic3)
+```
+
+```{r}
+#Tabling the documents by topics
+main_topic_table3 <- as.data.frame(table(topics(CTM3)))
+colnames(main_topic_table3) <- c("Topic", "Frequency")
+print(main_topic_table3)
+```
+
+```{r}
+#checking the sum
+sum(table(topics(CTM3)))
+```
+
+```{r}
+#looking at the topics and top 10 associated words.
+terms(CTM3,10)
+
+topics <- topics3
+```
+
+```{r}
+# Using tidyverse to look at the CTM results
+tidy_topics <- tidy(CTM3, matrix = "beta")
+tidy_topics
+
+top_terms <- tidy_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms
+```
+
+```{r}
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
+
+```{r}
+#Using classical MDS to view the clusters of topics
+
+d <- dist(topics) # euclidean distances between the rows
+
+fit <- isoMDS(d, k=2) # k is the number of dim
+```
+
+```{r}
+#Since there are two identical rows, we ran the below (don't run if rows aren't identical)
+
+#install.packages("vegan")
+library(vegan)
+fit <- vegan::metaMDS(comm = dist(topics))
+
+fit #view results
+```
+
+
+```{r}
+#plot solution 
+#adding the main topic as column 3
+plot_data <- as.data.frame(cbind(fit$points[,1], fit$points[,2], main_topic3$Main_Topic), 
+                                 row.names = data$doc_id)
+colnames(plot_data) <- c("Coordinate1", "Coordinate2", "Main_Topic")
+
+(p1 <- ggplot(data = plot_data, aes(x = Coordinate1, y = Coordinate2)) + geom_point(size=2, shape=23)) 
+```
+
+
+```{r}
+(p2 <- p1 + geom_point() + geom_text_repel(aes(label = row.names(plot_data)), size = 3, max.overlaps = 20)) 
+```
+
+```{r}
+#Use as.factor for Main_Topic for aes color so that there is a discrete color palette
+
+(p4 <- ggplot(data = plot_data) +
+    geom_point(mapping = aes(x = Coordinate1, y = Coordinate2, color = as.factor(Main_Topic))))
+```
+
+```{r}
+(p5 <- ggplot(plot_data, aes(Coordinate1, Coordinate2, color = as.factor(Main_Topic)))+
+    geom_point()+geom_text_repel(aes(label = row.names(plot_data)), size = 3, max.overlaps = 20))
+```
+
+## Part 2
+
+After replicating the analysis in the example markdown in #1above, please extend the analysis using additional code, visualizations, or inclusion of additional data from the IMDB movie review dataset. Please include at least three additional extensions that you include at the end of the markdown for Exercise 5. Please include at least one of the following ideas as one of your three, the other two are up to you or feel free to stick to this list, it’s up to your team:
+
+
+- Include additional visualizations of the final CTM model, perhaps using ideas from the optional tidytext reading, or interesting data visualizations from the data visualization readings from early in the semester including Wickham, Healy, and Bulut, etc.
+
+```{r}
+p4 + geom_density_2d_filled(data=plot_data, mapping=aes (x = Coordinate1, y = Coordinate2), alpha=0.3) +
+  labs(x = "", y = "",
+       title = "CTM Topics by Density",
+       subtitle = "Topics 4, 5, and 6 co-occured frequently",
+       caption = "IMDB database",
+       color = "Topics") +
+  guides(fill = "none") 
+```
+
+This graph shows the density distributions of the topics. Interestingly, the most frequent topics are not the most concentrated. Topics 4, 5, and 6 have higher densities, meaning their frequency is not evenly distributed. 
+
+- Using the additional data in the IMDB movie review dataset, examine the extent to which sentiment (how positive or negative the reviews are) relates to the topics. The sentiment data is already calculated and provided in the dataset, or you may want to use the tidytext sentiment analysis.
+
+```{r}
+# likely topics for each document (in this case combined reasons) 
+topicmodels::topics(CTM3) 
+topic_assigned <- as.data.frame(topicmodels::topics(CTM3)) 
+topic_assigned$row_id <- rownames(topic_assigned) 
+colnames(topic_assigned) <- c("topic_assigned", "row_id") 
+topic_assigned
+
+# add the same row_id column to the original data: 
+sample_clean <- data.frame(data) 
+sample_clean$row_id <- rownames(sample_clean) 
+
+# perform data join to attach topic proportions to original data
+sample_clean <- sample_clean %>% 
+  left_join(topic_assigned, by = "row_id")
+head(sample_clean) 
+
+# now we'll look at sentiment in a tidy text format following 
+# Silge and Robinson (2017) 
+
+sample_clean %>%
+  filter(topic_assigned == 7) %>% 
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>%
+  mutate(sent_score = ifelse(sentiment == "negative", 1, -1)) %>% 
+  group_by(row_id) %>% 
+  summarize(sent_count = sum(sent_score)) %>% 
+  ggplot(aes(x = row_id, y = sent_count)) + geom_histogram(stat = 'identity') + 
+  labs(x = "Review ID", y = "Sentiment Score", title = "Sentiment Distribution for Movie Reviews Categorized by Topic 7") 
+
+```
+
+- Display the most frequent and most infrequent topics.
+
+```{r}
+# using CTM model object, extract beta values and store in a matrix 
+review_topics <- tidy(CTM3, matrix = "beta")
+
+# calculate a ratio of topic 2: topic 1 likelihood (uses beta) 
+beta_wide <- review_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  pivot_wider(names_from = topic, values_from = beta) %>% 
+  filter(topic1 > .001 | topic2 > .001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+
+# plot with a random selection of 15 rows 
+beta_wide %>% 
+  sample_n(size = 15) %>% 
+  ggplot(aes(x = reorder(term, desc(log_ratio)), y = log_ratio)) + geom_histogram(stat = 'identity') + coord_flip() + ylab("Log Ratio of beta in Topic 2 / Topic 1") + xlab("Term") 
+
+```
+
+
+## Part 3
+
+*Provide a 2-3 page single spaced brief research proposal in which you argue for and justify the use of Correlated Topic Models applied to a research topic that you are interested in. Please address the following questions in this order as you apply your new knowledge of these techniques (feel free to write this part in MS Word or similar and copy/paste into the markdown).*
+
+**What is the purpose of your study?**
+The purpose of the study is to investigate the antecedents, mediating mechanisms, and practices of fostering resonance for facilitating constructive social change on the group and individual level. The idea of resonance as a force behind unity and social change is not new. The term comes from Latin and means to "resound" - to sound out together with a loud sound. Philosophers and social theorists have been articulating its centrality to human experience and social mobilization for over a century (Bateson, 1972; Canetti, 1960; De Tarde, 1903; LeBon, 1895). However, although resonance has received increasing attention in the complex systems and peace-building literatures of late (e.g., Burns, 2007; Eoyang & Holladay, 2013; Rothman, 1997), our understanding of it remains crude. Exactly what resonance is, how it functions, and the conditions that foster and inhibit it have yet to be specified sufficiently enough to offer much practical utility. The proposed study aims to bridge this gap. 
+
+**Is there any research literature and theory that supports this argument? How so?**
+Resonance is a term that has been defined variously in different areas of study, including in philosophy, mathematics, physics, and psychology. To many, the concept of resonance is most familiar with regards to music, as musical instruments are set into vibrational motion at their harmonic or natural frequency when played (Fletcher & Rossing, 2012). Research at the individual and interpersonal levels tends to concentrate on the affective and physical components of resonance (e.g. Fredrickson, 2013; Lewis, Amini & Lannon, 2007; Lockwood, Bird, Bridge &Viding, 2013). For example, Lewis et al. (2001) describe limbic resonance as an unconscious and internal process by which two people become physically and emotionally in-synch with one another.
+
+At the level of groups, LeBon (1895) and De Tarde (1903) applied the concept of resonance to crowd phenomena, employing it to explain unplanned collective action and riots. Studies on social movements emphasize frame resonance or “the degree to which individuals can identify with the stated positions of a frame” (Cooter, 2006), and focus mostly on the cognitive and action tendencies actualized through resonance (see Trevizo, 2006). Such resonance energizes and mobilizes people in support of a movement’s causes and goals. Similarly, resonance in social media has been studied in terms of interactions that result in information propagation (see Asur, Huberman, Szabo, & Wang, 2011) and contagion of emotional expression (see Kramer, Guillory & Hancock, 2014).  
+
+Based on our full review of the various conceptualizations of resonance, we offer a working definition of resonance as a dynamic of shared energy and connection within and between people and groups in a particular time and space. At its essence, resonance in social systems can be conceptualized as a form of heightened, shared (congruent) emotional, cognitive, physical or social energy that results in people feeling and finding connections and coherence. It is a form of shared motivation that gives way to different degrees of conceptual, emotional and behavioral coherence. Directed behavior may result when this energy crosses some threshold in a group (beyond inertia or resistance to change). From this perspective, crisis could also be viewed as a form of increased energy with decreased coherence that introduces more degrees of freedom and chaos in a system. In contrast, resonance is a form of heightened energy that induces increased coherence that provides a sense of shared meaning and direction in a social system. 
+
+**Why is a Correlated Topic Model a means to address this purpose?**
+Correlated Topic Modeling (CTM) is a statistical method that identify latent topics across a large collection of textual documents (Wang et al., 2017; Blei, 2012). This method is appropriate for identifying how topics and framing might generate more constructive discussions to foster social change. A few prior studies have utilized text-mining to conceptualize resonance. For example, Ernst (2009) used interviews of activists to measure existing and shifting “terms of frame resonance,” while McCammon (2009) measured activist frames using content analysis of historical documents, such as speeches given by activists, letters to lawmakers, articles in newspapers, public interviews, organizing documents outlining topics for public speeches, and minutes from legislative hearings. However, to my knowledge, no research has been done on identifying topics that would promote discussion across ideological beliefs. While calls to action and speeches by activists and political leaders can give insights into macro-level conflict, they are not formatted for discussions with the “other side.” In this study, we are interested in studying how everyday people find shared meaning and converse with people who they might disagree with. 
+
+**What would be the research question(s)? (To what extent…)**
+Are there similarities in the resonance pattern between the virtual space and physical space? What are potential topics of interests in social media discussion spaces? And finally, to what extent do topics, perspectives, and sentiments of posts facilitate engagement and resonance in virtual discussion spaces?
+
+**What type of dataset would you need? Is there a dataset you know of that would work?**
+**What types of data would you be looking for?**
+Before delving into datasets, realistically, we must narrow down the context of our study to look into the concept of resonance in social change. There are numerous social movements just within the last two decades in the U.S., such as Occupy Wall Street, #metoo, and March for Science. We decided to focus on the Black Lives Matter Movement because of its recency (the BlackLivesMatter hashtag started in 2013) and availability of related datasets. In addition, we will examine data from 2018 to 2021 (two years before and two years into the pandemic). For topic modeling, we would need a significant amount of text data, which can be scraped from Reddit. Keeping our research questions in mind, Reddit is a popular online platform that offer options for people to anonymously share and engage with others in moderate spaces, thus making it more fitting for discussions than Twitter. Specifically, we are hoping to scrape posts and comments from seven U.S.- and discussion-based subreddits (r/changemyview, r/Politics, r/PoliticalDiscussion, r/NeutralPolitics, r/PoliticalOpinions, r/Ask_Politics, and r/AskTrumpSupporters) using keywords related to Black Lives Matter and policing. Furthermore, to explore the resonance between the virtual and physical space, we would also identify quantitative datasets that measure demonstration count (Crowd Counting Consortium), police use of excessive force, U.S. Census Data, and daily tweet counts related to Black Lives Matter from 2018 to 2021. 
+
+**Provide the generalized equation for the topic model and a brief narrative in which you specify the type of model, following the examples from the readings.**
+CTM was developed by Blei & Lafferty (2005) to address the restrictive assumption from latent Dirichlet Allocation and allowed for correlations among topics within the same document using logistic normal distribution. In the data processing step, we will need to first create a document-term matrix to calculate term frequency. Term frequency (TF) refers to the number of times the term appears in the document divided by the total number of terms in the document. We then examine the inverse document frequency (IDF), which is a logarithmic equation that will help us identify the TF-IDF median for the 10 fold cross validation process. 
+
+The equation for topic modeling from Wang et al., 2017, on page 301, where (W) are the observed variables, theta is the latent variables or topic structure, Z is per-document per-word topic assignments, and beta is the topics. 
+
+**What do you think you would find?**
+According to the literature, we might find that social media engagement positively correlates with the number of demonstrations. In addition, as resonance reflects the process of meaning making, the discussion topics related to Black Lives Matter might change from 2018 to 2021 as different historical events unfolded. Finally, posts with stronger sentiments might have more comments and overall engagement but lower scores. 
+
+**Why would this be important? What would be the implications for this research domain?**
+We have seen politicians used resonance and fear to rile up voters in divisive ways. However, what if we can channel this same phenomena for bridging divides? The story of resonance that emerges from our review of the literature is eclectic but coherent. It reveals a rich array of definitions, antecedent conditions and processes, mediating mechanisms, levers, measures and outcomes associated with shared energy and coherence at several levels of analysis. To summarize, the literature and hopefully our findings will show that working with resonance effectively typically involves identifying, supporting and marshaling coherent and directed waves of motivation and energy in networks of people in service of communal change. It can spring from a variety of sources including from an increased awareness of unmet basic human needs; from perceptions of wrongdoing or injustice; from the emergence of crises and opportunities; from internal top-down, middle-out or bottom-up leadership, organization and mobilization; or from external actors and events. Resonance is often mercurial; ebbing and flowing and taking different forms at different stages of systemic change. Without a doubt, resonance is a vital source of energy useful for driving and sustaining systemic change. 
+
+
+

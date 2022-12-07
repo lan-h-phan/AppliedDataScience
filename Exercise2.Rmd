@@ -1,0 +1,476 @@
+---
+title: "Exercise2"
+author: "Lan Phan & Angelica Leon"
+date: '2022-10-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Healy 2017
+
+Import packages
+```{r}
+library(tidyverse)
+library(socviz)
+library(gapminder)
+library(dplyr)
+```
+
+*Chapter 4*
+
+Revisit the gapminder plots at the beginning of the chapter and experiment with different ways to facet the data. Try plotting population and per capita GDP while faceting on year, or even on country. In the latter case you will get a lot of panels, and plotting them straight to the screen may take a long time. Instead, assign the plot to an object and save it as a PDF file to your figures/ folder. Experiment with the height and width of the figure.
+```{r}
+gapminder %>% ggplot(
+  mapping =aes(x = year, y = gdpPercap)) +
+  geom_line(color = "gray70", aes(group=country)) + 
+  geom_smooth(size = 1.1, method = "loess", se = FALSE) + 
+  scale_y_log10(labels= scales::dollar) +
+  facet_wrap(~continent, ncol=5) +
+  labs(x = "Year",
+       y = "GDP per capita",
+       title = "GDP per capita on Five Continents")
+
+gapminder %>%
+  ggplot(mapping = aes(x = (pop/1000000), #divide the population for easier read
+                       y = gdpPercap)) +
+  geom_point(aes(group=country)) +
+  scale_y_log10(labels= scales::dollar) +
+  facet_wrap(~year) +
+  labs(x = "Population (million)",
+      y = "GDP per capita",
+      title = "GDP per capita based on year")
+
+country_plot <- gapminder %>%
+  ggplot(mapping = aes(x = (pop/1000000),
+                       y = gdpPercap)) +
+  geom_point() +
+  scale_y_log10(labels= scales::dollar) +
+  facet_wrap(~country, scale = "free") +
+  labs(x = "Population (million)",
+       y = "GDP per capita",
+       title = "GDP per capita based on country")
+```
+
+Investigate the difference between a formula written as facet_grid(sex ~ race) versus one written as facet_grid(~ sex + race).
+
+```{r}
+gss_sm %>%
+  ggplot(mapping = aes(x = age, y = childs)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth() +
+  facet_grid(sex~race)
+print("The plot treats this as 2 separate variables")
+
+gss_sm %>%
+  ggplot(mapping = aes(x = age, y = childs)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth() +
+  facet_grid(~sex + race)
+print("The plot presents these two variables as merged/ combination of one dimension")
+```
+
+Experiment to see what happens when you use facet_wrap() with more complex forumulas like facet_wrap(~ sex + race) instead of facet_grid. 
+
+```{r}
+gss_sm %>%
+  ggplot(mapping = aes(x = age, y = childs)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth() +
+  facet_wrap(sex ~ race)
+print("Like facet_grid(), the facet_wrap() function can facet on two or more variables at once. But it will do it by laying the results out in a wrapped one-dimensional table instead of a fully cross-classified grid.")
+print("Facet_wrap treats the variables similar to when we use facet_grid(~sex + race.")
+```
+
+Frequency polygons are closely related to histograms. Instead of displaying the count of observations using bars, they display it with a series of connected lines instead. You can try the various geom_histogram() calls in this chapter using geom_freqpoly() instead.
+
+```{r}
+midwest %>% 
+  ggplot(mapping = aes(x = area)) +
+  geom_freqpoly()
+
+#create a subset of two states
+oh_wi <- c("OH", "WI")
+midwest %>%
+  subset(subset = state %in% oh_wi) %>%
+  ggplot(mapping = aes(x = percollege, color = state)) +
+  geom_freqpoly()
+```
+
+A histogram bins observations for one variable and shows a bars with the count in each bin. We can do this for two variables at once, too. The geom_bin2d() function takes two mappings, x and y. It divides your plot into a grid and colors the bins by the count of observations in them. Try using it on the gapminder data to plot life expectancy versus per capita GDP. Like a histogram, you can vary the number or width of the bins for both x or y. Instead of saying bins = 30 or binwidth = 1, provide a number for both x and y with, for example, bins = c(20, 50). If you specify bindwith instead, you will need to pick values that are on the same scale as the variable you are mapping.
+
+```{r}
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = gdpPercap)) +
+  geom_bin2d(bins = c(40, 40)) +
+  labs(x = "Life Expectancy",
+       y = "GDP per capita",
+       title = "GDP per capita based on Life Expectancy")
+```
+
+Density estimates can also be drawn in two dimensions. The geom_density_2d() function draws contour lines estimating the joint distribution of two variables. Try it with the midwest data, for example, plotting percent below the poverty line (percbelowpoverty) against percent college-educated (percollege). Try it with and without a geom_point() layer.
+
+```{r}
+midwest %>%
+  ggplot(mapping = aes(x = percbelowpoverty, y = percollege)) +
+  geom_density_2d() +
+  labs(x = "Percent below Poverty Line",
+       y = "Percent College Educated", 
+       title = "Without geom_point")
+
+midwest %>%
+  ggplot(mapping = aes(x = percbelowpoverty, y = percollege)) +
+  geom_point() +
+  geom_density_2d() +
+  labs(x = "Percent below Poverty Line",
+       y = "Percent College Educated",
+       title = "With geom_point")
+
+print("It is less clustered without geom_point, but it was helpful to see how the density lines were created")
+```
+
+*Chapter 5*
+
+Import package(s)
+```{r}
+library(ggrepel)
+```
+The subset() function is very useful when used in conjunction with a series of layered geoms. Go back to your code for the Presidential Elections plot (Figure 5.18) and redo it so that it shows all the data points but only labels elections since 1992. You might need to look again at the elections_historic data to see what variables are available to you. You can also experiment with subsetting by political party, or changing the colors of the points to reflect the winning party.
+
+```{r}
+elections_historic %>%
+  ggplot(aes(x = popular_pct, y = ec_pct, label = winner_label)) +
+  geom_hline(yintercept = 0.5, size = 1.4, color = "gray80") +
+  geom_vline(xintercept = 0.5, size = 1.4, color = "gray80") +
+  geom_point(aes(colour = win_party)) +
+  geom_text_repel(data = subset(elections_historic, year >= 1992)) +
+  scale_x_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Winner's share of Popular Vote", y = "Winner's share of Electoral College Votes",
+       title = "Presidential Elections: Popular & Electoral College Margins",
+       subtitle = "1824-2016",
+       caption = "Data for 2016 are provisional")
+```
+
+Use geom_point() and reorder() to make a Cleveland dot plot of all Presidential elections, ordered by share of the popular vote.
+
+```{r}
+elections_historic %>%
+  ggplot(mapping = aes(x = popular_pct,
+                       y = reorder(election, popular_pct),
+                       label = election)) +
+  geom_point() +
+  geom_text_repel() +
+  scale_x_continuous(labels = scales::percent) +
+  labs(y = "Election, reordered by popular vote",
+       x = "Percentage of Popular Vote")
+```
+
+Try using annotate() to add a rectangle that lightly colors the entire upper left quadrant of Figure 5.18.
+
+```{r}
+elections_historic %>%
+  ggplot(aes(x = popular_pct, y = ec_pct, label = winner_label)) +
+  geom_hline(yintercept = 0.5, size = 1.4, color = "gray80") +
+  geom_vline(xintercept = 0.5, size = 1.4, color = "gray80") +
+  geom_point() +
+  annotate(geom = "rect", xmin = 0.5, xmax = 1,
+           ymin = 0.5, ymax = 1, fill = "red", alpha = 0.2) +
+  geom_text_repel(data = subset(elections_historic, year >= 1992)) +
+  scale_x_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Winner's share of Popular Vote", y = "Winner's share of Electoral College Votes",
+       title = "Presidential Elections: Popular & Electoral College Margins",
+       subtitle = "1824-2016",
+       caption = "Data for 2016 are provisional")
+```
+
+The main action verbs in the dplyr library are group_by(), filter(), select(), summarize(), and mutate(). Practice with them by revisiting the gapminder data to see if you can reproduce a pair of graphs from Chapter One, shown here again in Figure 5.28. You will need to filter some rows, group the data by continent, and calculate the mean life expectancy by continent before beginning the plotting process.
+
+```{r}
+gapminder %>%
+  filter(year == 2007) %>%
+  group_by(continent) %>%
+  mutate(average = mean(lifeExp, na.rm = TRUE)) %>%
+  ggplot(mapping = aes(x = average, y = reorder(continent, average))) +
+  geom_col(position = "dodge2") +
+  labs(x = "Life Expectancy in Years, 2007", 
+       y = NULL)
+
+
+gapminder %>%
+  filter(year == 2007) %>%
+  group_by(continent) %>%
+  mutate(average = mean(lifeExp, na.rm = TRUE)) %>%
+  ggplot(mapping = aes(x = average, y = reorder(continent, average))) +
+  geom_point() +
+  labs(x = "Life Expectancy in Years, 2007", 
+       y = NULL)
+```
+
+Get comfortable with grouping, mutating, and summarizing data in pipelines. This will become a routine task as you work with your data. There are many ways that tables can be aggregated and transformed. Remember group_by() groups your data from left to right, with the rightmost or innermost group being the level calculations will be done at; mutate() adds a column at the current level of grouping; and summarize() aggregates to the next level up. Try creating some grouped objects from the GSS data, calculating frequencies as you learned in this Chapter, and then check to see if the totals are what you expect. For example, start by grouping degree by race, like this:
+
+gss_sm %>% group_by(race, degree) %>%
+    summarize(N = n()) %>%
+    mutate(pct = round(N / sum(N)*100, 0)) 
+
+This code is similar to what you saw earlier, but a little more compact. (We calculate the pct values directly.) Check the results are as you expect by grouping by race and summing the percentages. Try doing the same exercise grouping by sex or region.
+
+```{r}
+gss_sm %>% 
+  group_by(religion, degree) %>%
+  summarize(N = n()) %>%
+  mutate(pct = round(N / sum(N)*100, 0)) 
+
+gss_sm %>% 
+  group_by(sex, degree) %>%
+  summarize(N = n()) %>%
+  mutate(pct = round(N / sum(N)*100, 0)) 
+```
+
+Try summary calculations with functions other than sum. Can you calculate the mean and median number of children by degree? (Hint: the childs variable in gss_sm has children as a numeric value.)
+
+```{r}
+gss_sm %>% 
+  group_by(degree) %>%
+  transmute(meanchild = mean(childs, na.rm = TRUE),
+            medianchild = median(childs, na.rm = TRUE)) 
+```
+
+Experiment with the gapminder data to practice some of the new geoms we have learned. Try examining population or life expectancy over time using a series of boxplots. (Hint: you may need to use the group aesthetic in the aes() call.) Can you facet this boxplot by continent? Is anything different if you create a tibble from gapminder that explicitly groups the data by year and continent first, and then create your plots with that?
+
+```{r}
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = year)) +
+  geom_boxplot(aes(group = year)) + 
+  labs(x = "Life Expectancy",
+       y = NULL,
+       title = "Life Expectancy Over Time")
+
+
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = year)) +
+  geom_boxplot(aes(group = year)) + 
+  facet_wrap(~continent) +
+  labs(x = "Life Expectancy",
+       y = NULL,
+       title = "Life Expectancy Over Time, by Continent")
+
+gapminder %>%
+  group_by(continent, year) %>%
+  ggplot(mapping = aes(x = lifeExp)) +
+  geom_boxplot(aes(group = year)) +
+  labs(x = "Life Expectancy",
+       y = "Year")
+```
+
+Read the help page for geom_boxplot() and take a look at the notch and varwidth options. Try them out to see how they change the look of the plot.
+
+```{r}
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = year)) +
+  geom_boxplot(aes(group = year), notch = TRUE) + 
+  facet_wrap(~continent) +
+  labs(x = "Life Expectancy",
+       y = NULL,
+       title = "Life Expectancy Over Time, by Continent")
+
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = year)) +
+  geom_boxplot(aes(group = year), varwidth = TRUE) + 
+  facet_wrap(~continent) +
+  labs(x = "Life Expectancy",
+       y = NULL,
+       title = "Life Expectancy Over Time, by Continent")
+```
+
+As an alternative to geom_boxplot() try geom_violin() for a similar plot, but with a mirrored density distribution instead of a box and whiskers.
+
+```{r}
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = year)) +
+  geom_violin(aes(group = year)) + 
+  facet_wrap(~continent) +
+  labs(x = "Life Expectancy",
+       y = NULL,
+       title = "Life Expectancy Over Time, by Continent")
+```
+
+geom_pointrange() is one of a family of related geoms that produce different kinds of error bars and ranges, depending on your specific needs. They include geom_linerange(), geom_crossbar(), and geom_errorbar(). Try them out using gapminder or organdata to see how they differ.
+
+```{r}
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp, y = (pop/1000000), 
+                       xmin = 10, xmax = 11)) +
+  geom_pointrange() +
+  labs(x = "Life Expectancy",
+       y = "Population (million)")
+
+gapminder %>%
+  ggplot(mapping = aes(x = lifeExp)) +
+  geom_errorbar(aes(xmin = 0.1, xmax = 1, ymin = 0, ymax = 3)) +
+  labs(x = "Life Expectancy")
+```
+
+
+##Bulut & Desjardines, 2019
+
+*Chapter 5*
+
+Import packages
+```{r}
+library(ggplot2)
+library(GGally)
+library(ggExtra)
+library(ggalluvial)
+library(plotly)
+library(data.table)
+```
+
+Wrangling data
+
+```{r}
+pisa <- fread("~/Desktop/Academics/2022 Fall/Applied Data Science/Data Sets/region6.csv", na.strings = "")
+
+#First, create a function to convert dichotomous variable to numeric scoring
+# x a character vector containing "Yes" and "No" responses
+bin.to.num <- function(x){
+  if(is.na(x)) NA
+  else if (x == "Yes") 1L
+  else if (x == "No") 0L #L is to make sure variable is treated as interger
+}
+
+#Then use this function to create some variables as well as recoding gender
+
+pisa[, `:=` (female = ifelse(ST004D01T == "Female", 1, 0),
+             sex = ST004D01T, #the := adds the variables directly to the DT
+             
+             # At my house we have ... 
+             desk = sapply(ST011Q01TA, bin.to.num), 
+             own.room = sapply(ST011Q02TA, bin.to.num), 
+             quiet.study = sapply(ST011Q03TA, bin.to.num), 
+             computer = sapply(ST011Q04TA, bin.to.num), 
+             software = sapply(ST011Q05TA, bin.to.num),
+             internet = sapply(ST011Q06TA, bin.to.num), 
+             lit = sapply(ST011Q07TA, bin.to.num), 
+             poetry = sapply(ST011Q08TA, bin.to.num), 
+             art = sapply(ST011Q09TA, bin.to.num), 
+             book.sch = sapply(ST011Q10TA, bin.to.num), 
+             tech.book = sapply(ST011Q11TA, bin.to.num), 
+             dict = sapply(ST011Q12TA, bin.to.num), 
+             art.book = sapply(ST011Q16NA, bin.to.num))]
+
+#Then create new variables by combining preexisiting ones
+pisa[, `:=` 
+     (math = rowMeans(pisa[, c(paste0("PV", 1:10, "MATH"))], na.rm = TRUE), 
+       reading = rowMeans(pisa[, c(paste0("PV", 1:10, "READ"))], na.rm = TRUE), 
+       science = rowMeans(pisa[, c(paste0("PV", 1:10, "SCIE"))], na.rm = TRUE))]
+
+#Filter data set based on a list of countries
+
+country <- c("United States", "Canada", "Mexico", "B-S-J-G (China)", "Japan",
+             "Korea", "Germany", "Italy", "France", "Brazil", "Colombia", "Uruguay",
+             "Australia", "New Zealand", "Jordan", "Israel", "Lebanon")
+
+dat <- pisa[CNT %in% country,
+            .(CNT, OECD, CNTSTUID, W_FSTUWT, sex, female,
+              ST001D01T, computer, software, internet,
+              ST011Q05TA, ST071Q02NA, ST071Q01NA, ST123Q02NA,
+              ST082Q01NA, ST119Q01NA, ST119Q05NA, ANXTEST,
+              COOPERATE, BELONG,  EMOSUPS, HOMESCH, ENTUSE,
+              ICTHOME, ICTSCH, WEALTH, PARED, TMINS, ESCS,
+              TEACHSUP, TDTEACH, IBTEACH, SCIEEFF,
+              math, reading, science)
+]
+
+# Let's create additional variables that we will use for visualizations
+dat <- dat[, `:=` (
+  # New grade variable
+  grade = (as.numeric(sapply(ST001D01T, function(x) {
+    if(x=="Grade 7") "7"
+    else if (x=="Grade 8") "8"
+    else if (x=="Grade 9") "9"
+    else if (x=="Grade 10") "10"
+    else if (x=="Grade 11") "11"
+    else if (x=="Grade 12") "12"
+    else if (x=="Grade 13") NA_character_
+    else if (x=="Ungraded") NA_character_}))),
+  # Total learning time as hours
+  learning = round(TMINS/60, 0),
+  # Regions for selected countries
+  Region = (sapply(CNT, function(x) {
+    if(x %in% c("Canada", "United States", "Mexico")) "N. America"
+    else if (x %in% c("Colombia", "Brazil", "Uruguay")) "S. America"
+    else if (x %in% c("Japan", "B-S-J-G (China)", "Korea")) "Asia"
+    else if (x %in% c("Germany", "Italy", "France")) "Europe"
+    else if (x %in% c("Australia", "New Zealand")) "Australia"
+    else if (x %in% c("Israel", "Jordan", "Lebanon")) "Middle-East"
+  }))
+)]
+```
+
+Exercise 5.2.1
+
+Create a plot of math scores over countries with different colors based on region. You need to modify the R code below by replacing geom_boxplot with:
+
+geom_point(aes(color = Region)), and then
+geom_violin(aes(color = Region)).
+How long did it take to create both plots? Which one is a better way to visualize this type of data?
+
+```{r}
+ggplot(data = dat,
+       mapping = aes(x = reorder(CNT, math), y = math, fill = Region)) +
+  geom_boxplot() +
+  labs(x=NULL, y="Math Scores") +
+  coord_flip() +
+  geom_hline(yintercept = 490, linetype="dashed", color = "red", size = 1) +
+  theme_bw()
+
+print("This took around 2-3 seconds")
+
+ggplot(data = dat,
+       mapping = aes(x = reorder(CNT, math), y = math, fill = Region)) +
+  geom_point(aes(color = Region)) +
+  geom_violin(aes(color = Region)) +
+  labs(x=NULL, y="Math Scores") +
+  coord_flip() +
+  geom_hline(yintercept = 490, linetype="dashed", color = "red", size = 1) +
+  theme_bw()
+
+print("This took longer, around 6-7 seconds. 
+      Even though the latter looks more aesthetically pleasing, we can get more information from the boxplot. 
+      It was also easier to compare across countries when using the boxplot.")
+```
+
+Interpretation:
+
+What can we say about the regions based on the plots above?
+- If we compare the scores across regions, we can see that the median score in Asia is the highest for reading, science, and math. Similarly, the lowest median scores for these three subjects are South America. 
+
+Do you see any major gender differences for reading, science, or math?
+- In general, women on average score higher in reading but lower in science and math (stereotype threat). 
+
+What is the relationship among reading, science, or math?
+- There are strong, positive correlations between the three, above .80 with p<.001. This means that students who have high scores in one subject are more likely to have high scores in the other two. As science has components of both math and reading, it has higher correlations with each subject than between math and reading.
+
+Exercise 5.3.1
+
+Create a scatterplot of socio-economic status (ESCS) and math scores (math) across regions (region) and gender (sex). Use geom_smooth(method = "lm") to draw linear regression lines (instead of loess smoothing). Do you think that the relationship between ESCS and math changes across gender and regions?
+```{r}
+#Random sample of 500 students from each region
+dat_small <- dat[,
+                 .SD[sample(.N, min(500,.N))], 
+                 by = Region]
+dat_small %>%
+  ggplot(mapping = aes(x= ESCS, y = math)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(sex~Region) +
+  theme_bw() +
+  theme(legend.title = element_blank()) +
+  labs(x = "Socio-economic Status",
+       y = "Math Score")
+print("The relationship between ESCS and math does not change across gender and regions - it is a positive correlation across groups. So this means the lower their socio-economic status, the lower their math scores.")
+```

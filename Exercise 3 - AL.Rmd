@@ -1,0 +1,188 @@
+---
+title: "Exercise 3"
+author: "Jonathan Beltran Alvarado, Lan Phan, Angelica Leon, "
+date: "2022-10-21"
+output: html_document
+---
+
+Exercise 3 – Cluster analysis heatmaps
+
+```{r}
+#setup
+library(ComplexHeatmap)
+library(hopach) 
+library(circlize)
+```
+
+1. Please replicate the code and markdown provided in the readings for the mtcars dataset to visualize it using hierarchical cluster analysis heatmaps following the recommendations from the readings, including using uncentered correlation.
+
+```{r}
+head(mtcars)
+data<-mtcars[, c(1:7)]
+#first seven continuous variables in the dataset
+#reserve variable 8 and 9 for dichotomous (0/1) annotations in a future step
+
+#z-scoring the data
+data.scale<-scale(data)
+head(data.scale)
+
+```
+
+```{r}
+Heatmap(data.scale, name = "mtcars heatmap", 
+        cluster_rows=FALSE , cluster_columns = FALSE) 
+#default heatmap with no clustering
+```
+
+```{r}
+Heatmap(data.scale, name = "mtcars heatmap", cluster_columns = FALSE) 
+#clustered rows 
+#the default distance metric is “euclidean”, and the default agglomeration (clustering) method is “complex”
+```
+```{r}
+Heatmap(data.scale, name = "mtcars heatmap") 
+#clustering of both rows and columns
+#the default distance metric is “euclidean”, and the default agglomeration (clustering) method is “complex”.
+```
+
+```{r}
+#uncentered correlation and average linkage
+uncenter.dist<-function(m) {
+  as.dist(as.matrix(distancematrix(m, d="cosangle")))
+}
+
+row.clus<-hclust(uncenter.dist(data.scale), method = "ave")
+col.clus<-hclust(uncenter.dist(t(data.scale)), method = "ave")
+
+Heatmap(data.scale, name = "mtcars heatmap", 
+        cluster_rows=row.clus, cluster_columns=col.clus)
+```
+```{r}
+#adding annotations
+ht_inline<-Heatmap(mtcars[, c(8)], name = "Cylinder Config",
+                   col = colorRamp2(c(0,1),c("white", "black")),
+                   heatmap_legend_param = list(at = c(0,1),
+                         labels = c("V-shaped", "Inline")),
+                   width = unit(0.5,"cm"))
+
+ht_manual<-Heatmap(mtcars[, c(9)], name = "Transmission",
+                   col = colorRamp2(c(0,1),c("white", "black")),
+                   heatmap_legend_param = list(at = c(0,1),
+                         labels = c("Automatic", "Manual")),
+                   width = unit(0.5,"cm"))
+
+ht_main = Heatmap(data.scale, name = "cluster rows",
+                  cluster_rows=row.clus, cluster_columns = col.clus)
+
+draw(ht_main+ht_manual+ht_inline, auto_adjust = FALSE) 
+```
+
+2. Select at least three different options/alternatives from ComplexHeatmap's first three chapters, and apply them to the mtcars dataset. For example, such as using different clustering algorithms (k-means, etc.), separation of heatmaps, stacking, different ways to annotate (columns and rows and different graphing options beyond black/white blocks), etc. Please provide some text in your markdown discussing what options/alternatives you selected, why this was interesting, and any challenges you experienced with running the visualizations. Provide a few sentences to interpret each new heatmap visualization.
+
+```{r}
+#experimenting with colors 
+col_fun = colorRamp2(c(-2, 0, 2), c("green", "white", "red"))
+col_fun(seq(-3, 3))
+Heatmap(data.scale, name = "mtcars",  cluster_rows=row.clus, cluster_columns=col.clus, col = col_fun) #we want to keep uncentered correlation
+
+```
+The heatmap above is not as easy to interpret because red and green can hold different meanings. While red is associated with heat, green might mean "good" or "go" in some cultures. Then it is confusing whether red or green should represent data above the mean. 
+```{r}
+#Not showing anything in the heatmap body
+Heatmap(data.scale, name = "mtcars", 
+        cluster_rows=row.clus, cluster_columns=col.clus,
+        rect_gp = gpar(type = "none"),
+        column_title = "nothing in the heatmap body")
+```
+As we are learning how to do clustergram as a whole, it is easy to take certain parts of the clustergram for granted. The graph above with nothing in the heatmap body reminds us that the heatmap enhances our understanding of the data in addition to the dendogram. 
+```{r}
+#checking for NAs
+data.scale_with_na = data.scale
+na_index = sample(c(TRUE, FALSE), nrow(data.scale)*ncol(data.scale), replace = TRUE, prob = c(1, 9))
+data.scale_with_na[na_index] = NA
+
+#Switching to best coloring practices
+#CORN FLOWER BLUE!!
+best_col = colorRamp2(c(-2, 0, 2), c("#82A3FF", "grey", "#8B2E2E"))
+
+Heatmap(data.scale_with_na, name = "mtcars", na_col = "white", cluster_rows=row.clus,
+        cluster_columns=col.clus, 
+        col = best_col,
+        column_title = "a matrix with NA values")
+#NA values are white
+
+
+```
+The matrix with NA values can be helpful when we want to be transparent with our data. In addition, letting NA be white helps viewers identify them more easily but does not draw too much attention compared to black. 
+
+```{r}
+#trying with boardings
+Heatmap(data.scale_with_na, name = "mtcars", na_col = "white", cluster_rows=row.clus, cluster_columns=col.clus,rect_gp = gpar(col = "white", lwd = 2), col = best_col, column_title = "a matrix with NA values")
+
+```
+
+```{r}
+#splitting; this code is wrong becuase it doesn't include the uncentered correlation
+Heatmap(data.scale, name = "data.scale", col = best_col, row_km = 2)
+Heatmap(data.scale, name = "data.scale", col = best_col, column_km = 2)
+Heatmap(data.scale, name = "data.scale", col = best_col, row_km = 3, column_km = 2)
+
+```
+As we see from the prior heatmap, there are a few NA values, thus this heatmap is not as accurate as when we used uncentered correlation. However, the splitting function is helpful for interpretation (and potentially manipulative) as it adheres to Gestalt principles of visualization.  
+
+```{r}
+#Let's try k-means
+library(cluster)
+#Seems like from hierarchical clustering, there are 4 groups/ centers
+group = kmeans(t(data.scale), centers = 4)$cluster
+Heatmap(data.scale, name = "mtcars", cluster_columns = cluster_within_group(data.scale, group), col = best_col, column_title = "clustering using k-means")
+```
+- k-means can be a fast and efficient methods to divide data into a pre-determined set of cluster. However, this is also its cons as we have to enforce a number of cluster from the top-down instead of learning bottom-up from the data. In addition, it is not really good with NA values and can be an issue for bigger data sets. 
+
+3. Provide a 2-3 page single spaced brief research proposal in which you argue for and justify the use of cluster analysis heatmap in a research topic that you are interested in. Please address the following questions in this order as you apply your new knowledge of cluster analysis and heatmaps (feel free to write this part in MS Word or similar and copy/paste into the markdown).
+
+What is the purpose of your study?
+Is there any research literature and theory that supports this argument? How so?
+Why is cluster analysis heatmaps a means to address this purpose?
+What would be the research question(s)? (To what extent…)
+What type of dataset would you need? Is there a dataset you know of that would work?
+What types of data would you be looking for?
+Provide the generalized equation for the clustering and a brief narrative in which you specify the type of clustering, following the examples from the readings.
+What do you think you would find?
+Why would this be important? What would be the implications for this research domain?
+
+
+Optional Stretch Goal:
+
+Completion or not of this optional stretch goal will have no effect team member grades.
+
+Use the TidyTuesday data from September of 2021 on the Billboard Top 100 songs chart from Spotify:
+
+https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-09-14/readme.mdLinks to an external site.
+
+Focusing on describing the data by song, select songs based on:
+
+spotify_track_popularity > 90.
+
+Then replicate as many of the aspects of the below cluster analysis heatmap as you can, which may include among other aspects:
+
+Row order
+Column order
+Annotations
+Font size
+Labels
+Provide a few sentences within your markdown on the successes and challenges in working to replicate as many aspects of the visualization as you can.
+
+ 
+
+heatmap01.png
+
+ 
+
+Notes on Optional Stretch Goal:
+
+This website is useful for forcing knitr to render the plots correctly:
+
+http://zevross.com/blog/2017/06/19/tips-and-tricks-for-working-with-images-and-figures-in-r-markdown-documents/Links to an external site.
+
+ 

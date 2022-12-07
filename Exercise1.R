@@ -1,5 +1,5 @@
 ###Applied Data Science Assignment 1
-
+install.packages("rmarkdown")
 #Wickham & Grolemund (2017): Chapters 3 through 6
 #Chapter 5
 library(nycflights13)
@@ -361,7 +361,7 @@ print(object.size(pisa), unit = "GB")
 
 ##P1. Subset all the Female students (ST004D01T) in Germany
 
-pisa[CNTRYID == "Germany" & ST004D01T == "Female"]
+pisa[CNTRYID == "Germany" & ST004D01T == "Yes"]
 
 ##P2 How many students are there in Germany? 
 pisa[CNTRYID == "Germany" & ST004D01T == "Female", 

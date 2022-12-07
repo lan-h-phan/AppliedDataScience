@@ -1,0 +1,473 @@
+---
+title: "Exercise 4"
+author: "Jonathan Beltran-Alvarado, Angelica Leon, Lan Phan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Part 1
+
+Recreate each of the ROC AUC figures 1-3 and tables 1-3 from Bowers & Zhou (2019) using the ELS:2002 dataset. Part of this exercise is accessing and analyzing large datasets that are not automatically imported into R through a package.
+To do this, you will first need to access the ELS:2002 dataset from the US Department of Education NCES website at: https://nces.ed.gov/OnlineCodebookLinks to an external site.
+It is recommended that you watch the brief “take the tour” video on the upper right before starting.
+Note that ELS:2002 has thousands of variables. To help analysts select the data that they need, NCES has a two-step process:
+The full ELS:2002 dataset needs to be downloaded, which should have around 16,000 rows and thousands of variables.
+The website system allows you to select individual variables and then download the R syntax, which will create a new dataframe from the full dataset dataframe.
+Note that if you use your back button on your browser, you will lose your work.
+The website is also finicky. My recommendation is to pick a few variables and then download the syntax, then edit the syntax.
+This syntax needs to be loaded into R and edited. Once you have opened the syntax, it may be easier to just type the variable labels you want into the “keepvars” section near the top. For example, you can just add “F2EVERDO” to the list for the outcome of interest.
+Also, watch out that some of the variables in the ELS dataframe are randomly in lower case. This is the real world of data management and data cleaning! You will need to check for this issue in this tweet, as NCES may have fixed it, or not: https://twitter.com/Alex_J_Bowers/status/1443594897202810901Links to an external site.
+For each figure/table pair, please provide a few sentences to describe and interpret the output given the readings.
+ 
+# Part 2 
+
+Second, for *Bulut & Dejardins (2019) chapter 7*, please replicate each step of their code for the PISA dataset for regression trees and random forests. For each major section (bold headers, like 7.2, 7.2.1, etc, please provide a few sentences to describe and interpret the output given the readings.
+
+## Load Packages
+
+In addition to the packages we have used so far, to create decision trees and random forests, we will need to install a few additional packages. 
+```{r}
+library(data.table)
+library(dplyr)
+library(ggplot2)
+
+#install packages that you might not have yet
+#decision_packages <- c("caret", "rpart", "rpart.plot", "randomForest", "modelr")
+#install.packages(decision_packages)
+
+#then load them using library
+library("caret")
+library("rpart")
+library("rpart.plot")
+library("randomForest")
+library("modelr")
+
+```
+
+## Load Dataset & Wrangling
+
+We chose region6 dataset instead of the full pisa 
+```{r}
+
+#loading region6 so that it is less heavy than the full pisa
+pisa <- fread("~/Desktop/Academics/2022 Fall/Applied Data Science/Data Sets/region6.csv", na.strings = "")
+
+
+#First  create new variables by combining preexisiting ones
+pisa[, `:=` 
+     (math = rowMeans(pisa[, c(paste0("PV", 1:10, "MATH"))], na.rm = TRUE), 
+       reading = rowMeans(pisa[, c(paste0("PV", 1:10, "READ"))], na.rm = TRUE), 
+       science = rowMeans(pisa[, c(paste0("PV", 1:10, "SCIE"))], na.rm = TRUE))]
+
+#Then, create a binary variable with high and low score cut off
+
+pisa <- pisa[, science_perf := as.factor(ifelse(science >= 493, "High", "Low"))]
+
+#create the subset
+
+pisa_small <- subset(pisa, CNT %in% c("Canada", "United States"), 
+                     select = c(science_perf, WEALTH, HEDRES, ENVAWARE, ICTRES, 
+                                EPIST, HOMEPOS, ESCS, reading, math))
+
+```
+
+We will then split the dataset into a training and a testing one. We will train the decision tree on the training dataset and then test it on the remianing one. The rule is usually 7:3 for training:testing ratio.
+
+```{r}
+#set seed so that the results are reproducible
+set.seed(442019)
+
+# remove missing cases
+pisa_nm <- na.omit(pisa_small)
+
+#spliting the data 7:3 using the caret package
+index <- createDataPartition(pisa_nm$science_perf, p = .7, list = FALSE)
+train_dat <- pisa_nm[index, ]
+test_dat <- pisa_nm[-index, ]
+
+nrow(train_dat)
+nrow(test_dat)
+```
+Our training dataset has 16,561 rows, 70% of the pisa_nm (23,658), while the testing dataset has 7,097 rows.
+
+The book also showed an alternative way to create the index using random number generation with sample.int().
+```{r}
+#this would have replaced the index part in the prior r chunk
+n <- nrow(pisa_nm)
+index <- sample.int(n, size = round(0.7 * n))
+```
+
+## Building Decision Trees
+
+We will use the rpart function from rpart package. Within the function, there will be several elements, which will be discussed either in writing or as comments within the code.
+
+We will be overfitting our first model. As discussed in class, it is better to cast a wide net first and then start trimming down. 
+
+```{r}
+dt_fit1 <- rpart(formula = science_perf ~., #science_perf is our dependent variable
+                 data = train_dat, #to test against the remaining later
+                 method = "class", #classification tree
+                 control = rpart.control(minsplit = 20, #minimum # observations that must exist in a node
+                                         cp = 0, #complex parameter = 0 means no pruning
+                                         xval = 0),  #no cross validation
+                 parms = list(split = "gini") #easiest to understand and calculate for dichotomous
+                 )
+```
+
+Now that we have the model, let's visualize it. 
+
+```{r}
+rpart.plot(dt_fit1)
+```
+We previously mentioned the decision to create an overfitting model. Thus, this visualization/ model is not helpful in making a decision. The information is too overwhelming and too specific, similar to examples of the bed and the dog house we saw in class!
+
+Now, for model 2, we will increase the cp value. The higher the cp value, the shorter the trees with fewer predictors. 
+
+```{r}
+dt_fit2 <- rpart(formula = science_perf ~ .,
+                 data = train_dat,
+                 method = "class", 
+                 control = rpart.control(minsplit = 20, 
+                                         cp = 0.005, 
+                                         xval = 0),
+                parms = list(split = "gini"))
+
+rpart.plot(dt_fit2)
+```
+This is much better. We can also use Entropy splitting instead of Gini, and the results are fairly similar. 
+Entropu is "information" in our code, instead of "gini". We can also play around with colors for the model
+
+```{r}
+dt_fit2 <- rpart(formula = science_perf ~ .,
+                 data = train_dat,
+                 method = "class", 
+                 control = rpart.control(minsplit = 20, 
+                                         cp = 0.005, 
+                                         xval = 0),
+                parms = list(split = "information"))
+
+rpart.plot(dt_fit2, extra = 8, box.palette = "RdBu", shadow.col = "gray")
+```
+
+In addition, we can use prune() from the rpart package to prune the model. Let's test this on our first model
+
+```{r}
+dt_fit1_prune <- prune(dt_fit1, cp = .0005)
+rpart.plot(dt_fit1_prune, extra = 8, box.palette = "RdBu", shadow.col = "gray")
+```
+It looks similar and the code is shorter. However, we could just adjust the initial cp value in the model. This might be a helpful code when we want to compare multiple pruning parameters as it is shorter than writing the entire model code. 
+
+*Creating Model Output*
+```{r}
+printcp(dt_fit2)
+```
+nsplit = number of splits in the decision tree based on cp
+rel error = relative error (1 - R^2) of the solution
+It seems like only math and reading were used in the final model. Now we will use summary() for more info
+
+```{r}
+summary(dt_fit2)
+```
+Or use the caret package
+```{r}
+varImp(dt_fit2)
+```
+These outputs show the importance of each variable to the model. We can see that math and reading are highly important for the decision tree model. We can also see the decision rules from the trees
+```{r}
+rpart.rules(dt_fit2, cover = TRUE)
+```
+*Testing the Model*
+It is now time to test the model on the test data by applying the estimated model. The output shows each observation's probability of falling into either high or low categories based on the decision rules that we estimated.
+```{r}
+dt_pred <- predict(dt_fit2, test_dat) %>%
+  as.data.frame()
+
+head(dt_pred)
+```
+We now need to turn these probabilities into binary classifications that indicate whether or not they are more than 50% (probability of randomly guessing). 
+```{r}
+dt_pred <- mutate(dt_pred,
+  science_perf = as.factor(ifelse(High >= 0.5, "High", "Low"))
+  ) %>%
+  select(science_perf)
+```
+Now we compare it with the actual classes in the test data through making a confusion matrix. 
+```{r}
+confusionMatrix(dt_pred$science_perf, test_dat$science_perf)
+```
+Our overall accuracy is very good with sensitivity close to 94% and specificity is close to 90%. What is we don't have reading and math scores? 
+
+```{r}
+dt_fit3a <- rpart(formula = science_perf ~ WEALTH + HEDRES + ENVAWARE + ICTRES + EPIST + 
+                   HOMEPOS +ESCS,
+                 data = train_dat,
+                 method = "class", 
+                 control = rpart.control(minsplit = 20, 
+                                         cp = 0.005, 
+                                         xval = 0),
+                parms = list(split = "gini"))
+
+rpart.plot(dt_fit3a, extra = 8, box.palette = "RdBu", shadow.col = "gray")
+```
+
+Turning into a small function
+
+```{r}
+decision_check <- function(cp) {
+  require("rpart")
+  require("dplyr")
+  
+  dt <- rpart(formula = science_perf ~ WEALTH + HEDRES + ENVAWARE + ICTRES + EPIST + 
+                   HOMEPOS + ESCS,
+              data = train_dat,
+              method = "class", 
+              control = rpart.control(minsplit = 20, 
+                                           cp = cp, 
+                                           xval = 0),
+              parms = list(split = "gini"))
+  
+  dt_pred <- predict(dt, test_dat) %>%
+    as.data.frame() %>%
+    mutate(science_perf = as.factor(ifelse(High >= 0.5, "High", "Low"))) %>%
+    select(science_perf)
+  
+  cm <- confusionMatrix(dt_pred$science_perf, test_dat$science_perf)
+  
+  results <- data.frame(cp = cp, 
+                        Accuracy = round(cm$overall[1], 3),
+                        Sensitivity = round(cm$byClass[1], 3),
+                        Specificity = round(cm$byClass[2], 3))
+  
+  return(results)
+}
+
+result <- NULL
+for(i in seq(from=0.001, to=0.08, by = 0.005)) {
+  result <- rbind(result, decision_check(cp = i))
+}
+
+result <- result[order(result$Accuracy, result$Sensitivity, result$Specificity),]
+result
+```
+Visualizing using ggplot2
+
+```{r}
+#turning into long format first
+result_long <- melt(as.data.table(result),
+                    id.vars = c("cp"),
+                    measure = c("Accuracy", "Sensitivity", "Specificity"),
+                    variable.name = "Index",
+                    value.name = "Value")
+
+ggplot(data = result_long,
+       mapping = aes(x = cp, y = Value)) +
+  geom_point(aes(color = Index), size = 3) +
+  labs(x = "Complexity Parameter", y = "Value") +
+  theme_bw()
+```
+Depending on the use, we might select the model to prioritize on sensitivity or specificity. 
+
+## Cross-validation
+Sometimes when our data is small, we might not be able to split and have a testing data. We can then use cross-validation instead of adjusting cp. 
+We will use 10-fold cross validation (10 is the common number)
+
+```{r}
+dt_fit4 <- rpart(formula = science_perf ~ WEALTH + HEDRES + ENVAWARE + ICTRES + 
+                   EPIST + HOMEPOS + ESCS,
+                 data = train_dat,
+                 method = "class", 
+                 control = rpart.control(minsplit = 20,
+                                         cp = 0,
+                                         xval = 10),
+                parms = list(split = "gini"))
+```
+Visualize results
+```{r}
+printcp(dt_fit4)
+plotcp(dt_fit4)
+```
+We can modify our models
+
+```{r}
+dt_fit5 <- rpart(formula = science_perf ~ WEALTH + HEDRES + ENVAWARE + ICTRES + 
+                   EPIST + HOMEPOS + ESCS,
+                 data = train_dat,
+                 method = "class", 
+                 control = rpart.control(minsplit = 20, 
+                                         cp = 0.0034, #elbow is around this area
+                                         xval = 0),
+                parms = list(split = "gini"))
+
+printcp(dt_fit5)
+```
+Plot
+```{r}
+rpart.plot(dt_fit5, extra = 8, box.palette = "RdBu", shadow.col = "gray")
+```
+
+## Regression Tree
+For learning, we will try out regression tree as well. To build a regression tree, we will use "anova" as method.
+```{r}
+rt_fit1 <- rpart(formula = math ~ WEALTH + HEDRES + ENVAWARE + 
+                  ICTRES + EPIST + HOMEPOS + ESCS,
+                 data = train_dat,
+                 method = "anova", 
+                 control = rpart.control(minsplit = 20,
+                                         cp = 0.001,
+                                         xval = 10),
+                parms = list(split = "gini"))
+
+printcp(rt_fit1)
+```
+We can tweak our parameters based on the results.
+```{r}
+rt_fit2 <- rpart(formula = math ~ WEALTH + HEDRES + ENVAWARE + 
+                  ICTRES + EPIST + HOMEPOS + ESCS,
+                 data = train_dat,
+                 method = "anova", 
+                 control = rpart.control(minsplit = 20, 
+                                         cp = 0.007,
+                                         xval = 0),
+                parms = list(split = "gini"))
+
+printcp(rt_fit2)
+
+rpart.plot(rt_fit2, extra = 100, box.palette = "RdBu", shadow.col = "gray")
+```
+For regression trees, we can use mean absolute error (mae) and the root mean square error (rmse) to evaluate. The modelr package has mae() and rmse() function for these.
+
+```{r}
+# Training Dat
+mae(model = rt_fit2, data = train_dat)
+rmse(model = rt_fit2, data = train_dat)
+
+#Testing Dat
+mae(model = rt_fit2, data = test_dat)
+rmse(model = rt_fit2, data = test_dat)
+
+```
+It is not surprising that we have slightly less error with the training data than the testing data as the training data makes up of a larger percentage so better generalizability.
+
+## Random Forests
+
+Random forests can help address the non-robustness of decision trees and are less affected by changes in the data. By having additional randomness to the model, random forests search for the best feature among a random subset of features. This leads to wide diversity that generally results in a better model.
+Random forests can also be used for both classification and regression. 
+
+```{r}
+rf_fit1 <- randomForest(formula = science_perf ~ .,
+                        data = train_dat,
+                        importance = TRUE, #assessed the importance of predictors
+                        ntree = 1000) #number of trees
+
+print(rf_fit1)
+
+#Random forests indeed took much longer
+```
+Similarly to decision trees, it is better to start off with a larger number of trees then cut them down.
+```{r}
+plot(rf_fit1)
+```
+The error level doesn't seem to reduce further after roughtly 50 trees, so we can run our model again by using ntree = 50.
+
+```{r}
+rf_fit2 <- randomForest(formula = science_perf ~ .,
+                        data = train_dat,
+                        importance = TRUE, ntree = 50)
+
+print(rf_fit2)
+```
+Calculate the overall accuracy of model
+```{r}
+sum(diag(rf_fit2$confusion)) / nrow(train_dat)
+```
+Check importance of the predictors in the model and sort the data by Gini
+```{r}
+importance(rf_fit2) %>%
+  as.data.frame() %>%
+  mutate(Predictors = row.names(.)) %>%
+  arrange(desc(MeanDecreaseGini))
+```
+```{r}
+varImpPlot(rf_fit2, 
+           main = "Importance of Variables for Science Performance")
+```
+We found similar results compared to when we used decision trees, with math and reading being the main predictors. 
+
+```{r}
+#Confusion Matrix 
+rf_pred <- predict(rf_fit2, test_dat) %>%
+  as.data.frame() %>%
+  mutate(science_perf = as.factor(`.`)) %>%
+  select(science_perf)
+  
+confusionMatrix(rf_pred$science_perf, test_dat$science_perf)
+```
+
+We can visualize the classification results using ggplot2 for barchart and point plot. 
+
+```{r}
+rf_class <- data.frame(actual = test_dat$science_perf,
+                      predicted = rf_pred$science_perf) %>%
+  mutate(Status = ifelse(actual == predicted, TRUE, FALSE))
+
+ggplot(data = rf_class, 
+       mapping = aes(x = predicted, fill = Status)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Predicted Science Performance",
+       y = "Actual Science Performance") +
+  theme_bw()
+```
+```{r}
+ggplot(data = rf_class, 
+       mapping = aes(x = predicted, y = actual, 
+                     color = Status, shape = Status)) +
+  geom_jitter(size = 2, alpha = 0.6) +
+  labs(x = "Predicted Science Performance",
+       y = "Actual Science Performance") +
+  theme_bw()
+```
+Finally, if we want to use cross-validation for random forests, we can use rfUtilities package
+
+```{r}
+#install.packages("rfUtilities")
+library("rfUtilities")
+
+rf_fit2_cv <- rf.crossValidation(
+  x = rf_fit2, 
+  xdata = train_dat,
+  p=0.10, # Proportion of data to test (the rest is training)
+  n=10,   # Number of cross validation samples
+  ntree = 50)   
+
+
+# Plot cross validation vs model  accuracy
+par(mfrow=c(1,2)) 
+plot(rf_fit2_cv, type = "cv", main = "CV producers accuracy")
+plot(rf_fit2_cv, type = "model", main = "Model producers accuracy")
+par(mfrow=c(1,1)) 
+
+# Plot cross validation vs model 
+par(mfrow=c(1,2)) 
+plot(rf_fit2_cv, type = "cv", stat = "oob", main = "CV oob error")
+plot(rf_fit2_cv, type = "model", stat = "oob", main = "Model oob error")    
+par(mfrow=c(1,1)) 
+```
+
+
+# Part 3
+
+Provide a 2-3 page single spaced brief research proposal in which you argue for and justify the use of ROC AUC accuracy analysis and/or regression trees applied to a research topic that you are interested in. Please address the following questions in this order as you apply your new knowledge of these techniques (feel free to write this part in MS Word or similar and copy/paste into the markdown).
+What is the purpose of your study?
+Is there any research literature and theory that supports this argument? How so?
+Why is ROC AUC accuracy and/or regression trees (or both) a means to address this purpose?
+What would be the research question(s)? (To what extent…)
+What type of dataset would you need? Is there a dataset you know of that would work?
+What types of data would you be looking for?
+Provide the generalized equation for the clustering and a brief narrative in which you specify the type of clustering, following the examples from the readings.
+What do you think you would find?
+Why would this be important? What would be the implications for this research domain?
