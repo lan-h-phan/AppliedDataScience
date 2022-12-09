@@ -44,9 +44,6 @@ censusdat <- censusdat %>%
 policeviolence <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/policeviolence2018-2021.csv")
 
 
-# hatecrime count from 2018-2020
-hatecrime <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/hatecrime2018-2020.csv")
-
 #tweet count related to BLM 
 tweetcount <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/blmtweetcount2018-2021.csv")
 
@@ -68,6 +65,8 @@ c3allstate <- c3allstate %>%
   pivot_wider(names_from = type, values_from = n)
 
 c3allstate$`2`[is.na(c3allstate$`2`)] <- 1
+
+#maybe this website to add tweet counts: https://www.statology.org/sum-specific-rows-in-r/
 
 ```
 
@@ -97,11 +96,6 @@ best_col = colorRamp2(c(-2, 0, 2), c("#82A3FF", "grey", "#8B2E2E"))
 
 #Setting up= for the 2018 heatmap
 
-#counting hate crime in 2018
-hcsum2018 <- hatecrime %>%
-  filter(DATA_YEAR == 2018) %>%
-  group_by(STATE_ABBR) %>%
-  summarize(HateCrime = n())
 
 pvsum2018 <- policeviolence %>%
   filter(year == 2018) %>%
@@ -114,17 +108,15 @@ datsum2018 <- censusdat %>%
              by = c("NAME" = "Name"))
 
 datsum2018 <- datsum2018 %>%
-  left_join(hcsum2018,
-            by = c("Abbrev" = "STATE_ABBR")) %>%
   left_join(pvsum2018,
             by = c("Abbrev" = "state")) %>%
-  mutate(rHateCrime = (HateCrime/ PopEstimate)*100,
+  mutate(
          rPoliceViolence = (PoliceViolence/ PopEstimate)*100) %>%
   dplyr::select(NAME,
          rWhite, rBlack, rNative, rAsian, rOther, rMixed,
-         rPoliceViolence, rHateCrime)
+         rPoliceViolence)
 
-hm2018dat<-datsum2018[, c(2:9)]
+hm2018dat<-datsum2018[, c(2:8)]
 
 #name the heatmap rows to their states
 rownames(hm2018dat) <- datsum2018$NAME
@@ -149,10 +141,6 @@ ht2018 = Heatmap(hm2018dat.scale, name = "2018 Heatmap",
 
 #Setting up for the 2019 heatmap
 
-hcsum2019 <- hatecrime %>%
-  filter(DATA_YEAR == 2019) %>%
-  group_by(STATE_ABBR) %>%
-  summarize(HateCrime = n())
 
 pvsum2019 <- policeviolence %>%
   filter(year == 2019) %>%
@@ -165,17 +153,15 @@ datsum2019 <- censusdat %>%
              by = c("NAME" = "Name"))
 
 datsum2019 <- datsum2019 %>%
-  left_join(hcsum2019,
-            by = c("Abbrev" = "STATE_ABBR")) %>%
   left_join(pvsum2019,
             by = c("Abbrev" = "state")) %>%
-  mutate(rHateCrime = (HateCrime/ PopEstimate)*100,
+  mutate(
          rPoliceViolence = (PoliceViolence/ PopEstimate)*100) %>%
   dplyr::select(NAME,
          rWhite, rBlack, rNative, rAsian, rOther, rMixed,
-         rPoliceViolence, rHateCrime)
+         rPoliceViolence)
 
-hm2019dat<-datsum2019[, c(2:9)]
+hm2019dat<-datsum2019[, c(2:8)]
 
 #name the heatmap rows to their states
 rownames(hm2019dat) <- datsum2019$NAME
@@ -198,11 +184,6 @@ ht2019 = Heatmap(hm2019dat.scale, name = "2019 Heatmap",
 #2020 Heatmap
 
 
-hcsum2020 <- hatecrime %>%
-  filter(DATA_YEAR == 2020) %>%
-  group_by(STATE_ABBR) %>%
-  summarize(HateCrime = n())
-
 pvsum2020 <- policeviolence %>%
   filter(year == 2020) %>%
   group_by(state) %>%
@@ -214,17 +195,15 @@ datsum2020 <- censusdat %>%
              by = c("NAME" = "Name"))
 
 datsum2020 <- datsum2020 %>%
-  left_join(hcsum2020,
-            by = c("Abbrev" = "STATE_ABBR")) %>%
   left_join(pvsum2020,
             by = c("Abbrev" = "state")) %>%
-  mutate(rHateCrime = (HateCrime/ PopEstimate)*100,
+  mutate(
          rPoliceViolence = (PoliceViolence/ PopEstimate)*100) %>%
   dplyr::select(NAME,
          rWhite, rBlack, rNative, rAsian, rOther, rMixed,
-         rPoliceViolence, rHateCrime)
+         rPoliceViolence)
 
-hm2020dat<-datsum2020[, c(2:9)]
+hm2020dat<-datsum2020[, c(2:8)]
 
 #name the heatmap rows to their states
 rownames(hm2020dat) <- datsum2020$NAME
@@ -245,7 +224,8 @@ ht2020 = Heatmap(hm2020dat.scale, name = "2020 Heatmap",
 
 ```{r}
 
-ht2018 + ht2019 + ht2020
+ht2018
++ ht2019 + ht2020
 ```
 
 ## Heatmap Maps! 
@@ -393,82 +373,102 @@ The codes are from
 
 Bowers, A.J., Chen, J.(2015) Ask and Ye Shall Receive? Automated Text Mining of Michigan Capital Facility Finance Bond Election Proposals to Identify which Topics are Associated with Bond Passage and Voter Turnout. Journal of Education Finance, 41(2), p.164-196. http://dx.doi.org/10.7916/D8FJ2GDH
 
-```{r}
+```{r topic modeling packages}
 library(topicmodels)
 library(tm)
 library(tidytext)
 library(tidyr)
+library(stringr)
 library(slam)
 library(ggrepel)
 library(MASS)
 library(textstem)
 library(readtext)
-```
-
-### 2018 Reddit Posts
-```{r}
 #package to change the time into something that makes sense
 library(anytime)
+```
 
+### 2018-2019 Reddit Posts
+```{r, eval=FALSE}
 #Importing Reddit Data for 2018
 comments2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018comments.csv", na.string = "")
 
+
 posts2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018posts.csv", na.string = "")
+
 
 #reshaping 2018 data by matching post and comments together based on the post_id 
 all2018 <- posts2018[comments2018, on = c(id = "submission")] #right_joining 
 
 all2018$time_created <- anydate(all2018$time_created)
 
-all2018 <- all2018 %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) 
+#collapsing all comments to join the posts
 
-all2018 <- all2018[year == 2018]
+collapsed18 <- all2018 %>%
+  group_by(id) %>%
+  summarize(allcomment = paste(comment_body, collapse = " "))
 
+collapsed18 <- collapsed18 %>%
+  left_join(posts2018, by = c("id" = "id")) %>%
+  filter(!is.na(comms_num)) 
 
-#Divide up into subreddits
+collapsed18$alltext = paste(collapsed18$title, collapsed18$allcomment)
 
+collapsed18$time_created <- anydate(collapsed18$time_created)
 
-#Discussion-based
-#politics, politicaldiscussion, and neutralpolitics
-discussion2018 <- all2018[subreddit %in% c("politics", "politicaldiscussion", "neutralpolitics")]
-discussion2018p <- posts2018[subreddit %in% c("politics", "politicaldiscussion", "neutralpolitics")] #just post titles
-
-
-#opinion-based
-# changemyview, politicalopinions
-opinion2018 <- all2018[subreddit %in% c("changemyview", "politicalopinions")]
-opinion2018p <- posts2018[subreddit %in% c("changemyview", "politicalopinions")] #just post titles
-
-
-
-#query-based
-#asktrumpsupporters and ask_politics
-query2018 <- all2018[subreddit %in% c("asktrumpsupporters", "ask_politics")]
-#none in 2018
+#### 2019
 
 posts2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019posts.csv", na.string = "")
 
-posts1819 <- rbind(posts2018, posts2019)
+comments2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019comments.csv", na.string = "")
+
+
+
+#reshaping 2018 data by matching post and comments together based on the post_id 
+all2019 <- posts2019[comments2019, on = c(id = "submission")] #right_joining 
+
+all2019$time_created <- anydate(all2019$time_created)
+
+#collapsing all comments to join the posts
+
+collapsed19 <- all2019 %>%
+  group_by(id) %>%
+  summarize(allcomment = paste(comment_body, collapse = " "))
+
+collapsed19 <- collapsed19 %>%
+  left_join(posts2019, by = c("id" = "id")) %>%
+  filter(!is.na(comms_num)) 
+
+collapsed19$alltext = paste(collapsed19$title, collapsed19$allcomment)
+
+collapsed19$time_created <- anydate(collapsed19$time_created)
+
+reddit1819 <- rbind(collapsed18, collapsed19)
+#fwrite(reddit1819, "reddit1819collapsed.csv")
+#posts1819 <- rbind(posts2018, posts2019)
+#posts1819$time_created <- anydate(posts1819$time_created)
 ```
 
-```{r}
+```{r tidy text 18-19, eval = FALSE}
+
+# I did this step in python to clean out names, organization, and location manually
+# using the spaCy package
+
+posts1819 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/clean1819all.csv", na.string = "")
+
 posttext1819 <- posts1819 %>%
-  unnest_tokens(word, title) %>%
-  anti_join(stop_words)
+  unnest_tokens(word, alltext) %>%
+  anti_join(stop_words) 
 
 posttext1819 %>%
   group_by(word) %>%
-  count()
+  count(sort = TRUE)
+
+#random select 100 rows cause it is too much 
+#ctmdat <- sample_n(discussion2018p, 200)
   
 ```
 
-
-```{r}
-#random select 100 rows cause it is too much 
-#ctmdat <- sample_n(discussion2018p, 200)
-ctmdat <- posts1819
-```
 
 *Learning Notes from Dr. Bowers*
 topicmodels and tm needs a very specific type of data, called a DocumentTermMatrix. We’ll call specific corpus and DocumentTermMatrix functions here to create the data matrix required for the topic model.
@@ -477,25 +477,37 @@ Note here that this is where we stem, stopword, set the min word length, remove 
 
 So this sets up our data matrix DTM. We then need to know how to set “alpha” the hyperparameter, so we need some information on the tfidf (term frequency-inverse document frequency)
 
-```{r}
+```{r, eval = FALSE}
 #Build CMT
-corpus <- Corpus(VectorSource(ctmdat$title))
+corpus <- Corpus(VectorSource(posts1819$alltext))
+
+#clean using the codes from Wang et al., 2016
+REPLACE_STRING <- content_transformer(function(x, pattern, y)
+gsub(pattern, y, x, perl = TRUE))
+
+corpus <- tm_map(corpus, REPLACE_STRING, "\\s*â€”\\s*", "") #remove hyphens
+corpus <- tm_map(corpus, REPLACE_STRING, "[[:punct:]]", "") #remove punctuations
+corpus <- tm_map(corpus, stemDocument) #stemming
+
+corpus <- tm_map(corpus, removeWords, c("cmv", "http", "www", "wiki", "reddit", "com", "police", "officer", "officers", "lives", "matter", "blm", "d't", "n't", "people", "trump", "american", "cops", "americans", "blacklivesmatter", "russian"))
+
 
 #text manipulation
 text_DTM <- DocumentTermMatrix(corpus, control = list(stemming = TRUE, 
-                                                      stopwords = TRUE, stopwords = c("starbucks", "netanyahu", "beto", "didnt", "shouldnt", "illinois", "michigan", "metoo", "israel", "aurora", "kavanaugh", "trump", "blm", "blacklivesmatter"), minWordLength = 3, 
+                                                      stopwords = TRUE, minWordLength = 3, 
                                                       removeNumbers = TRUE, removePunctuation = TRUE))
 
 term_tfidf <- tapply(text_DTM$v / row_sums(text_DTM)[text_DTM$i], text_DTM$j, mean) * log2(nDocs(text_DTM)/col_sums(text_DTM > 0))
+
 summary(term_tfidf)
 
 plot(density(term_tfidf))
                             
 ```
-Rule of thumb is to use the median from the graph for alpha. Here it's around 0.7.
+Rule of thumb is to use the median from the graph for alpha. Here it's around 1.05
 We will cut down the total number of terms by setting alpha so that we don't have too many common terms no unique ones. 
-```{r}
-alpha <- 0.90 #is the median
+```{r, eval = FALSE}
+alpha <- 0.003 #is the median
 text_DTM_trimmed <- text_DTM[row_sums(text_DTM) >0, term_tfidf >= alpha]
 dim(text_DTM_trimmed)
 ```
@@ -504,7 +516,7 @@ dim(text_DTM_trimmed)
 
 We set up the 10 fold cross validation, selecting 10% of the data for each of the 10 folds
 
-```{r}
+```{r, eval = FALSE}
 # Cross validation
 
 control_CTM_VEM <- list(
@@ -521,7 +533,7 @@ control_CTM_VEM <- list(
 set.seed(123)
 topics <- c(2, 3, 4, 5, 6, 7, 8, 9, 10, 15) ##set k equals to 2 3 4 5 6 7 8 9 10 15.
 seed <- 2
-D <- length(ctmdat$title) 
+D <- length(posts1819$alltext) 
 folding <- sample(rep(seq_len(10), ceiling(D))[seq_len(D)])
 table(folding)
 ```
@@ -529,10 +541,9 @@ table(folding)
 **Learning Notes**
 We train and test using the 10-fold cross validation that we just set up. Then plot by perplexity to see where the elbow is to select the correct number of topics k
 
-Note: This can take a bit of time.
+Note: I waited for 12 hours (overnight) and it was still not done processing, so I decided to just do it in Python, which took a few minutes. The python code and output are attached in a separate pdf document. However, I will still present the R code as it would have been here. 
 
-```{r}
-
+```{r, eval=FALSE}
 
 #the code originally did not work because there were columns that had all 0 responses
 #so we had to remove them
@@ -557,7 +568,7 @@ for (k in topics) {
  #wow this is indeed taking forever
 ```
 
-```{r}
+```{r, eval = FALSE}
 # Plot perplexity
 transpose <- t(perp_by_col)
 matplot(transpose, type = "l", col = rainbow(9), lty = 2, lwd = 2, ylab = "Perplexity", xlab = "K", main = "CTM-10-fold cross validation", xaxt="n")
@@ -572,7 +583,7 @@ legend("topright", led, lwd = 2, lty = 2, col = c(rainbow(9), 'black'), cex = 0.
 abline(v = 4, col = "gray60", lty = 2)
 ```
 
-```{r}
+```{r, eval = FALSE}
 {plot(perp_by_col_mean, pch = 20, ylab = 'Perplexity', xlab = "K", main = "CTM-10-fold cross validation", 
       xaxt = "n") 
   axis(1, at = 1:10, labels = c("k=2","k=3","k=4","k=5","k=6","k=7","k=8","k=9","k=10","k=15"), cex = 0.5)
@@ -582,7 +593,7 @@ Alright this is  10 topics
 
 *Correlated Topic Model*
 Running 10 correlated topic model
-```{r}
+```{r, eval = FALSE}
 control_CTM_VEM1 <- list(
   estimate.beta = TRUE, verbose=0, prefix=tempfile(),save=0,keep=0,
   seed=1421313709,nstart=1L,best=TRUE,
@@ -591,14 +602,14 @@ control_CTM_VEM1 <- list(
   cg=list(iter.max=500,tol=10^5)
 )
 
-################## K = 9 ##################
+################## K = 10 ##################
 
 CTM3 <- CTM(text_DTM_trimmed, k = 10, control = control_CTM_VEM1)
 CTM3
 ```
 
 *Examining the Topic Output*
-```{r}
+```{r, eval = FALSE}
 
 ## Table the documents by topics
 main_topic_table3 <- as.data.frame(table(topics(CTM3)))
@@ -609,7 +620,7 @@ print(main_topic_table3)
 #what are the top 10 words for the 3 topics
 terms(CTM3,10)
 ```
-```{r}
+```{r, eval = FALSE}
 # Using this: https://www.tidytextmining.com/topicmodeling.html
 # Use tidyverse to look at the CTM results a bit more more
 
@@ -626,25 +637,38 @@ top_terms %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ topic, scales = "free") +
-  scale_fill_brewer(palette = "BuPu") +
+  scale_fill_brewer(palette = "Paired") +
   scale_y_reordered() +
   theme_bw()
+```
+```{r, eval = FALSE}
+
+## Topics
+topics3 <- posterior(CTM3)$topics
+## Let's look at the probability of each document info fits into each of the topics
+topics3 <- as.data.frame(topics3)
+nrow(topics3)
+rownames(topics3) <- posts1819$name
+print(topics3)
+## Let's look at which topic each document is assigned to one of the topics.
+main_topic3 <- as.data.frame(topics(CTM3))
+rownames(main_topic3) <- posts1819$doc_id
+colnames(main_topic3) <- "Main_Topic"
+print(main_topic3)
 ```
 
 ### 2020-2021 Posts
 ```{r}
-#random select 100 rows cause it is too much
-posts2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020posts.csv", na.string = "")
-posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021posts.csv", na.string = "")
-
-
-posts2021 <- rbind(posts2020, posts2021)
-ctmdat2 <- posts2021
+posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021tm.csv", na.string = "")
+posts2021$time_created <- anydate(posts2021$time_created)
+colnames(posts2021)
+  
 ```
 
 ```{r}
 #Build CMT
-corpus2 <- Corpus(VectorSource(ctmdat2$title))
+corpus2 <- Corpus(VectorSource(posts2021$topictext))
+
 
 #text manipulation
 text_DTM2 <- DocumentTermMatrix(corpus2, control = list(stemming = TRUE, stopwords = TRUE, minWordLength = 3, 
@@ -660,8 +684,8 @@ plot(density(term_tfidf2))
 Rule of thumb is to use the median from the graph for alpha. Here it's around 0.7.
 We will cut down the total number of terms by setting alpha so that we don't have too many common terms no unique ones. 
 ```{r}
-alpha2 <- 0.91 #is the median
-text_DTM_trimmed2 <- text_DTM2[row_sums(text_DTM2) >0, term_tfidf >= alpha2]
+alpha2 <- 0.003 #is the median
+text_DTM_trimmed2 <- text_DTM2[row_sums(text_DTM2) >0, term_tfidf2 >= alpha2]
 dim(text_DTM_trimmed2)
 ```
 
@@ -686,8 +710,8 @@ control_CTM_VEM <- list(
 set.seed(123)
 topics <- c(2, 3, 4, 5, 6, 7, 8, 9, 10, 15) ##set k equals to 2 3 4 5 6 7 8 9 10 15.
 seed <- 2
-D <- length(ctmdat2$title) 
-folding <- sample(rep(seq_len(10), ceiling(D))[seq_len(D)])
+D2 <- length(posts2021$topictext) 
+folding <- sample(rep(seq_len(10), ceiling(D2))[seq_len(D2)])
 table(folding)
 ```
 
@@ -742,10 +766,10 @@ abline(v = 4, col = "gray60", lty = 2)
   axis(1, at = 1:10, labels = c("k=2","k=3","k=4","k=5","k=6","k=7","k=8","k=9","k=10","k=15"), cex = 0.5)
   lines(perp_by_col_mean, lwd = 1, lty = 2, col = "red")}
 ```
-Hmm seems like 7 topics here
+From python, 10 topics
 
 *Correlated Topic Model*
-Running 7 correlated topic model
+Running 10 correlated topic model
 ```{r}
 control_CTM_VEM1 <- list(
   estimate.beta = TRUE, verbose=0, prefix=tempfile(),save=0,keep=0,
@@ -757,7 +781,7 @@ control_CTM_VEM1 <- list(
 
 ################## K = 9 ##################
 
-CTM4 <- CTM(text_DTM_trimmed2, k = 7, control = control_CTM_VEM1)
+CTM4 <- CTM(text_DTM_trimmed2, k = 10, control = control_CTM_VEM1)
 CTM4
 ```
 
@@ -771,7 +795,7 @@ print(main_topic_table3)
 
 
 #what are the top 10 words for the 3 topics
-terms(CTM4,7)
+terms(CTM4,10)
 ```
 ```{r}
 # Using this: https://www.tidytextmining.com/topicmodeling.html
@@ -795,4 +819,156 @@ top_terms %>%
   theme_bw()
 ```
 
+## Sentiment Analysis
+```{r packages for sentiment}
+library(tidytext)
+library(textdata)
+nrc <- get_sentiments("nrc") 
+```
 
+```{r data 20-21 import}
+reddit2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021tm.csv", na.string = "")
+reddit2021$time_created <- anydate(reddit2021$time_created)
+colnames(reddit2021)
+reddit2021 <- reddit2021 %>%
+  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, created, body, author, author_flair, subreddit, alltext, topictext, Topic)
+```
+
+```{r tidy data}
+tidy_r2021 <- reddit2021 %>%
+  unnest_tokens(word, topictext)
+```
+Sentiment Analysis
+```{r}
+tidy_r2021 %>%
+  inner_join(nrc) %>%
+  group_by(sentiment, Topic) %>%
+  count(sort = TRUE)
+```
+
+```{r sentiment plot}
+
+tidy_r2021 %>%
+  inner_join(get_sentiments("afinn")) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  unite(ym, year, month, sep = "-") %>%
+  group_by(time_created) %>%
+  summarise(sentiment = sum(value),
+            Topic = Topic,
+            index = ym) %>%
+  ggplot(aes(index, sentiment, fill = Topic)) +
+  geom_col(show.legend = FALSE) +
+  xlab("")+
+  facet_wrap(~Topic, ncol = 3) +
+  theme_bw()
+```
+
+```{r}
+tidy_r2021 %>%
+  inner_join(get_sentiments("bing")) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  unite(ym, year, month, sep = "-") %>%
+  group_by(time_created) %>%
+  count(Topic, index = ym, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative) %>%
+  ggplot(aes(index, sentiment, fill = Topic)) +
+  geom_col(show.legend = FALSE) +
+  xlab("")+
+  facet_wrap(~Topic, ncol = 3) +
+  theme_bw()
+```
+What if we study the texts with higher engagement vs. lower engagement
+Run correlations?
+```{r}
+nrc_small <- get_sentiments("nrc") %>%
+  filter(sentiment %in% c("trust", "anticipation", "joy", 
+                        "fear", "anger", "disgust", "sadness"))
+summary(reddit2021$comms_num) #split at the median of 33
+
+#just post titles
+res2021 <- reddit2021 %>%
+  unnest_tokens(word, title) %>%
+  inner_join(nrc_small) %>%
+  group_by(sentiment, id)# %>%
+  #mutate(count = n())
+
+setDT(res2021)
+#make the frame longer so that each sentiment is a column 
+res2021 <- dcast.data.table(res2021, id~sentiment, value.var= 'sentiment')
+
+res2021 <- res2021 %>%
+  inner_join(reddit2021, by = c("id" = "id"))
+#rm(reddit2021) #for now as vector memory exhausted
+colnames(res2021)
+res2021corr <- res2021 %>%
+  dplyr::select(comms_num, score, upvote_ratio, joy, trust, anticipation, anger, disgust, fear, sadness)
+
+library(ggcorrplot)
+correlation_matrix <- round(cor(res2021corr),1)
+corrp.mat <- cor_pmat(res2021corr) #calculating p-vals
+
+ggcorrplot(correlation_matrix, hc.order =TRUE, 
+           type ="upper", p.mat = corrp.mat, insig="blank") 
+
+```
+Fear and trust sentiments in the title are positively correlated with number of comments and upvote ratio
+
+Disgust and sadness are negatively correlated with upvote ratio
+
+What about comments?
+
+```{r}
+posts2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020posts.csv", na.string = "")
+posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021posts.csv", na.string = "")
+reddit2021p <- rbind(posts2020, posts2021)
+reddit2021p <- reddit2021p[comms_num > 33,]
+
+comments2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020comments.csv", na.string = "")
+comments2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021comments.csv", na.string = "")
+reddit2021c <- rbind(comments2020, comments2021)
+
+
+#just take comments from posts with more than 2 comments
+reddit2021c <- reddit2021c %>%
+  inner_join(reddit2021p, by = c("submission" = "id"))
+reddit2021c <- reddit2021c[!is.na(comment_body),]
+
+colnames(reddit2021c)
+```
+
+
+```{r}
+
+afinn <- get_sentiments("afinn") 
+ # summarise(sentiment = sum(value),
+          
+
+
+comm2021 <- reddit2021c %>%
+  unnest_tokens(word, comment_body) %>%
+  inner_join(nrc_small) %>%
+  group_by(sentiment, comment_id)
+
+setDT(comm2021)
+#make the frame longer so that each sentiment is a column 
+comm2021 <- dcast.data.table(comm2021, comment_id~sentiment, value.var= 'sentiment')
+
+comm2021 <- comm2021 %>%
+  inner_join(reddit2021c, by = c("comment_id" = "comment_id")) %>%
+  separate(comment_parent_id, into = c("prefix", "comm_parent_id"), sep = "_") 
+
+comm2021 <- comm2021  %>%
+  filter(prefix == "t3") #only select top level comments
+comm2021corr <- comm2021 %>%
+  dplyr::select(comment_score, joy, trust, anticipation, anger, disgust, fear, sadness)
+
+#graph
+correlation_matrix <- round(cor(comm2021corr),1)
+corrp.mat <- cor_pmat(comm2021corr) #calculating p-vals
+
+ggcorrplot(correlation_matrix, hc.order =TRUE, 
+           type ="upper", p.mat = corrp.mat, insig="blank") 
+```
+
+#still nothing
