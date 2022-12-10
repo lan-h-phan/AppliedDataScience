@@ -17,11 +17,124 @@ library(ggplot2)
 library(readxl)
 library(data.table)
 library(RColorBrewer)
+library(ggcorrplot)
+library(plotly)
 ```
 
 # Tidy Data
 
-A series of steps was taken to compile, clean, and sort the various data sets used in this paper. The attached markdown document reflects the initial process. 
+A series of steps was taken to compile, clean, and sort the various data sets used in this paper. The below codes reflects the initial process. 
+
+```{r US Census, eval = FALSE}
+#US Census Cleaning
+
+#race census 2020
+racecensus <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/Racecensus.csv")
+
+#turn statenames to a column
+racecensus <- racecensus %>%
+  pivot_longer(c('Alabama':'Puerto Rico'), names_to = "STATE", values_to = "count")
+#labels into column names
+racecensus <- racecensus %>%
+  pivot_wider(names_from = `Label (Grouping)`, values_from = count)
+
+racecensus <- racecensus %>%
+  rename_at(2, ~ "Total") %>%
+  rename_at(4, ~ "White") %>%
+  rename_at(5, ~ "Black") %>%
+  rename_at(6, ~ "Native") %>%
+  rename_at(7, ~ "Asian") %>%
+  rename_at(8, ~ "Native Hawaiian/PI") %>%
+  rename_at(9, ~ "Other") %>%
+  rename_at(10, ~ "Inter-racial")
+
+racecensus <- racecensus %>%
+  select(1:11)
+
+#save this smaller data set
+write_csv(racecensus, "racecensus2020.csv")
+
+#general number count
+racecensus <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/racecensus2020.csv")
+
+censusraw <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/Census20202021.csv")
+
+censusraw <- censusraw %>%
+  rename_at(7, ~ "PopEstimate") %>%
+  select(1:7)
+
+censusclean <- censusraw %>%
+  inner_join(racecensus,
+            by = c("NAME" = "STATE"))
+
+write_csv(censusclean, "censusclean2020.csv")
+
+```
+
+```{r Police Violence, eval = FALSE}
+#Police Violence
+
+statetranslation <- read_xlsx("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/StateTranslation.xlsx")
+
+policeviolence <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/Mapping Police Violence-Grid view.csv")
+
+policeviolence <- policeviolence %>%
+  select(age, gender, race, date, city, state, county,
+         agency_responsible, cause_of_death,
+         circumstances, officer_charged, signs_of_mental_illness,
+         allegedly_armed, wapo_armed,
+         wapo_flee, wapo_body_camera,
+         encounter_type, initial_reason,
+         call_for_service,
+         pop_white_census_tract, pop_black_census_tract,
+         pop_hispanic_census_tract) %>%
+  separate(date, into = c("month", "day", "year"), sep = "/") %>%
+  left_join(statetranslation,
+            by = c("state" = "Abbrev")) 
+
+write_csv(policeviolence, "policeviolence2018-2021.csv")
+```
+
+```{r Tweet Count, eval = FALSE}
+#Tweet Count Cleaning
+
+tweetcount <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/tweet_counts_per_day.csv")
+
+#just tweet counts from 2018-2021
+tweetcount <- tweetcount %>%
+  separate(date_str, into = c("year", "month", "date"), sep = "-") %>%
+  filter(year %in% c("2018", "2019", "2020", "2021"))
+
+write_csv(tweetcount, "blmtweetcount2018-2021.csv")
+```
+
+```{r Demonstration & Bridging Org, eval = FALSE}
+# Demonstrations Count Cleaning
+#Probably should sort into for BlackLivesMatter; against BLM (i.e. AllLivesMatter); anti and pro-police/ BlueLivesMatter
+
+# Thank you to this person who cleaned this up
+# https://github.com/nonviolent-action-lab/crowd-counting-consortium
+
+c3compiled <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/ccc_compiled.csv")
+
+blmkeywords <- c("policing", "racism")
+
+blmkeywords <- str_c(blmkeywords, collapse = "|")
+
+
+c3compiled <- c3compiled %>%
+  separate(date, into = c("year", "month", "date"), sep = "-") %>%
+  filter(year %in% c("2018", "2019", "2020", "2021", "2022")) %>%
+  filter(grepl("policing|racism", issues, ignore.case = TRUE))
+
+write_csv(c3compiled, "c3clean.csv")
+
+# Bridge building organizations list
+bdidat <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/bridging-organizations-data-2022-11-21.csv")
+#probably not going to filter this 
+#addressing one aspects might have a ripple effect on others
+#cooperative vs competitive (demonstrations are more focused on race)
+```
 
 ## Import Datasets
 
@@ -66,6 +179,7 @@ c3allstate <- c3allstate %>%
 
 c3allstate$`2`[is.na(c3allstate$`2`)] <- 1
 
+
 #maybe this website to add tweet counts: https://www.statology.org/sum-specific-rows-in-r/
 
 ```
@@ -73,7 +187,7 @@ c3allstate$`2`[is.na(c3allstate$`2`)] <- 1
 # Data Visualization
 
 ## Descriptive Stats
-
+Also here to map tweets over time change: https://www.statology.org/sum-specific-rows-in-r/
 ## Heatmap
 
 ```{r}
@@ -225,7 +339,7 @@ ht2020 = Heatmap(hm2020dat.scale, name = "2020 Heatmap",
 ```{r}
 
 ht2018
-+ ht2019 + ht2020
+ht2019 + ht2020
 ```
 
 ## Heatmap Maps! 
@@ -233,8 +347,7 @@ ht2018
 (officially known as Choropleth)
 
 Parts of the codes are from: https://rdvark.net/2021/12/29/pretty-choropleth-maps-with-sf-and-ggplot2/
-
-For 2018
+Maybe do this for bridge-building orgs
 ```{r}
 library(leaflet)
 library(sf)
@@ -242,27 +355,28 @@ library(sf)
 #importing the shape of the U.S.
 usmap <- read_sf("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/gz_2010_us_040_00_5m.json")
 
-ccc2018 <- c3compiled %>%
-  filter(year == 2018)
+#Bridge-building Organizations
+bdidat <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/bridging-organizations-data-2022-11-21.csv")
 
-choroplot18 <- ccc2018 %>%
+
+
+choroplot <- bdidat %>%
   group_by(state) %>%
-  summarize(count2018 = n()) %>%
-  right_join(statetranslation,
-             by = c("state" = "Abbrev")) %>%
+  summarize(count = n()) %>%
+  left_join(statetranslation, by = c("state" = "Name")) %>%
   inner_join(censusdat,
-             by = c("Name" = "NAME")) %>%
-  mutate(ratio2018 = (count2018/PopEstimate)*100) %>%
+             by = c("state" = "NAME")) %>%
+  mutate(ratio = (count/PopEstimate)*100) %>%
   inner_join(usmap,
-             by = c("Name" = "NAME"))
+             by = c("state" = "NAME"))
 
 #turn back into a sf object for geom_sf to map out data
-choroplot18 <- st_as_sf(choroplot18)
+choroplot <- st_as_sf(choroplot)
 
 
 #### Just by count
-choroplot18 %>% 
-  ggplot(aes(fill = count2018)) + # create a ggplot object and 
+ggchoroplot <- choroplot %>% 
+  ggplot(aes(fill = count)) + # create a ggplot object and 
   # change its fill colour according to median_age
   geom_sf(colour = NA) +# plot all local authority geometries 
   scale_fill_gradient(low = "#82A3FF", 
@@ -270,28 +384,26 @@ choroplot18 %>%
   coord_sf(xlim = c(-180, -60), lims_method = "box") + #just zoom in the U.S.
   theme_void() #remove background
 
-#### By ratio of the population
-choroplot18 %>% 
-  ggplot(aes(fill = ratio2018)) + # create a ggplot object and 
-  # change its fill colour according to median_age
-  geom_sf(colour = NA) +# plot all local authority geometries 
-  scale_fill_gradient(low = "#82A3FF", 
-                      high = "#8B2E2E", na.value = "white") +
-  coord_sf(xlim = c(-180, -60), lims_method = "box") + #just zoom in the U.S.
-  theme_void() #remove background
+ggchoroplot #looks nicer than when with plotly
 
+#also work with plotly
+ggplotly(ggchoroplot)
 #finally omg
 #so beautiful imma cry
-#also work with plotly
+
 ```
 
 ## Changes in Demonstrations by Year and States
 
+Code adapted from Georgios Karamanis from Tidy Tuesday Challenge https://github.com/gkaramanis/tidytuesday/blob/master/2021/2021-week26/animal-rescues.R
 ```{r}
 
 ###Font Settings
 library(showtext)
 library(Hmisc)
+library(geofacet)
+library(ggh4x)
+
 
 font_add_google("Fira Sans", family = "firasans")
 font_add_google("Lato", family = "lato")
@@ -306,11 +418,11 @@ stategeofacet <- c3allstate %>%
 
 stategeofacet <- stategeofacet +
   # Colors for the lines
-  scale_color_manual(values = c("#3D85F7", "#C32E5A")) +
+  scale_color_manual(values = c("#C32E5A", "#3D85F7")) +
   scale_fill_manual(
     values = c(
-      colorspace::lighten("#3D85F7"), 
-      colorspace::lighten("#C32E5A"),
+      colorspace::lighten("#C32E5A"), 
+      colorspace::lighten("#3D85F7"),
       "grey60"),
     labels = c("more BLM", "more counter-protest")
   ) +
@@ -368,6 +480,8 @@ stategeofacet
 # Data Analysis
 
 ## Topic Modeling 
+
+Because of historical effects, per Dr. Bowers' recommendations, I will group 2018-2019 data together and compare them against 2020-2021 data. 
 
 The codes are from 
 
@@ -444,7 +558,9 @@ collapsed19$alltext = paste(collapsed19$title, collapsed19$allcomment)
 collapsed19$time_created <- anydate(collapsed19$time_created)
 
 reddit1819 <- rbind(collapsed18, collapsed19)
-#fwrite(reddit1819, "reddit1819collapsed.csv")
+
+reddit1819all <- rbind(all2018, all2019)
+#fwrite(reddit1819all, "reddit1819all.csv")
 #posts1819 <- rbind(posts2018, posts2019)
 #posts1819$time_created <- anydate(posts1819$time_created)
 ```
@@ -456,13 +572,6 @@ reddit1819 <- rbind(collapsed18, collapsed19)
 
 posts1819 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/clean1819all.csv", na.string = "")
 
-posttext1819 <- posts1819 %>%
-  unnest_tokens(word, alltext) %>%
-  anti_join(stop_words) 
-
-posttext1819 %>%
-  group_by(word) %>%
-  count(sort = TRUE)
 
 #random select 100 rows cause it is too much 
 #ctmdat <- sample_n(discussion2018p, 200)
@@ -657,176 +766,73 @@ colnames(main_topic3) <- "Main_Topic"
 print(main_topic3)
 ```
 
-### 2020-2021 Posts
-```{r}
-posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021tm.csv", na.string = "")
-posts2021$time_created <- anydate(posts2021$time_created)
-colnames(posts2021)
-  
-```
-
-```{r}
-#Build CMT
-corpus2 <- Corpus(VectorSource(posts2021$topictext))
-
-
-#text manipulation
-text_DTM2 <- DocumentTermMatrix(corpus2, control = list(stemming = TRUE, stopwords = TRUE, minWordLength = 3, 
-                                                      removeNumbers = TRUE, removePunctuation = TRUE))
-text_DTM2
-
-term_tfidf2 <- tapply(text_DTM2$v / row_sums(text_DTM2)[text_DTM2$i], text_DTM2$j, mean) * log2(nDocs(text_DTM2)/col_sums(text_DTM2 > 0))
-summary(term_tfidf2)
-
-plot(density(term_tfidf2))
-                            
-```
-Rule of thumb is to use the median from the graph for alpha. Here it's around 0.7.
-We will cut down the total number of terms by setting alpha so that we don't have too many common terms no unique ones. 
-```{r}
-alpha2 <- 0.003 #is the median
-text_DTM_trimmed2 <- text_DTM2[row_sums(text_DTM2) >0, term_tfidf2 >= alpha2]
-dim(text_DTM_trimmed2)
-```
-
-*10-fold Cross Validation*
-
-We set up the 10 fold cross validation, selecting 10% of the data for each of the 10 folds
-
-```{r}
-# Cross validation
-
-control_CTM_VEM <- list(
-  estimate.beta = TRUE, verbose = 0, prefix = tempfile(), save = 0, keep = 0,
-  seed = as.integer(Sys.time()), nstart=1L, best = TRUE,
-  var = list(iter.max=100, tol=10^-6),
-  em = list(iter.max=500, tol=10^-4),
-  cg = list(iter.max=100, tol=10^5)
-)
-
-# use 10-fold CV to determine k!
-# randomly divide the data into 10 folds.
-
-set.seed(123)
-topics <- c(2, 3, 4, 5, 6, 7, 8, 9, 10, 15) ##set k equals to 2 3 4 5 6 7 8 9 10 15.
-seed <- 2
-D2 <- length(posts2021$topictext) 
-folding <- sample(rep(seq_len(10), ceiling(D2))[seq_len(D2)])
-table(folding)
-```
-
-*Learning Notes*
-We train and test using the 10-fold cross validation that we just set up. Then plot by perplexity to see where the elbow is to select the correct number of topics k
-
-Note: This can take a bit of time.
-
-```{r}
-
-
-#the code originally did not work because there were columns that had all 0 responses
-#so we had to remove them
-raw.sum2 = apply(text_DTM_trimmed2, 1, FUN = sum)
-text_DTM_trimmed2 = text_DTM_trimmed2[raw.sum2!= 0,]
-
-
-## write a loop to automatically output the perplexity
-perp_by_col <- vector()
-for (k in topics) {
-  perp_by_row <- vector()
-  for (chain in seq_len(10)) {
-    training <- CTM(text_DTM_trimmed2[folding != chain,], k = k,
-                    control = control_CTM_VEM)
-    testing <- CTM(text_DTM_trimmed2[folding == chain,], model = training,
-                   control = control_CTM_VEM)
-    perp_by_row <- rbind(perp_by_row, perplexity(testing))
-  }
-  perp_by_col <- cbind(perp_by_col, perp_by_row)
-}
-
-```
-
-```{r}
-# Plot perplexity
-transpose <- t(perp_by_col)
-matplot(transpose, type = "l", col = rainbow(9), lty = 2, lwd = 2, ylab = "Perplexity", xlab = "K", main = "CTM-10-fold cross validation", xaxt="n")
-axis(1, at=1:10, labels = c("k=2", "k=3", "k=4", "k=5", "k=6", "k=7", "k=8", "k=9", "k=10", "k=15"), cex=0.5)
-
-perp_by_col_mean <- colMeans(perp_by_col)
-
-lines(perp_by_col_mean, col = "black", lwd = 4, lty = 1)
-led <- c("fold=2", "fold=3", "fold=4", "fold=5", "fold=6", "fold=7", "fold=8", "fold=9", "fold=10", "Average")
-legend("topright", led, lwd = 2, lty = 2, col = c(rainbow(9), 'black'), cex = 0.65)
-
-abline(v = 4, col = "gray60", lty = 2)
-```
-
-```{r}
-{plot(perp_by_col_mean, pch = 20, ylab = 'Perplexity', xlab = "K", main = "CTM-10-fold cross validation", 
-      xaxt = "n") 
-  axis(1, at = 1:10, labels = c("k=2","k=3","k=4","k=5","k=6","k=7","k=8","k=9","k=10","k=15"), cex = 0.5)
-  lines(perp_by_col_mean, lwd = 1, lty = 2, col = "red")}
-```
-From python, 10 topics
-
-*Correlated Topic Model*
-Running 10 correlated topic model
-```{r}
-control_CTM_VEM1 <- list(
-  estimate.beta = TRUE, verbose=0, prefix=tempfile(),save=0,keep=0,
-  seed=1421313709,nstart=1L,best=TRUE,
-  var=list(iter.max=500,tol=10^-6),
-  em=list(iter.max=1000,tol=10^-4),
-  cg=list(iter.max=500,tol=10^5)
-)
-
-################## K = 9 ##################
-
-CTM4 <- CTM(text_DTM_trimmed2, k = 10, control = control_CTM_VEM1)
-CTM4
-```
-
-*Examining the Topic Output*
-```{r}
-
-## Table the documents by topics
-main_topic_table3 <- as.data.frame(table(topics(CTM4)))
-colnames(main_topic_table3) <- c("Topic", "Frequency")
-print(main_topic_table3)
-
-
-#what are the top 10 words for the 3 topics
-terms(CTM4,10)
-```
-```{r}
-# Using this: https://www.tidytextmining.com/topicmodeling.html
-# Use tidyverse to look at the CTM results a bit more more
-
-tidy_topics <- tidy(CTM4, matrix = "beta")
-
-top_terms <- tidy_topics %>%
-  group_by(topic) %>%
-  slice_max(beta, n = 10) %>% 
-  ungroup() %>%
-  arrange(topic, -beta) 
-
-top_terms %>%
-  mutate(term = reorder_within(term, beta, topic)) %>%
-  ggplot(aes(beta, term, fill = factor(topic))) +
-  geom_col(show.legend = FALSE) +
-  facet_wrap(~ topic, scales = "free") +
-  scale_fill_brewer(palette = "BuPu") +
-  scale_y_reordered() +
-  theme_bw()
-```
+### 2020-2021 Reddit Posts
+The process is similar to the 2018-2019 posts. The actual analyses in Python is attached in the separate pdf document. 
 
 ## Sentiment Analysis
+Sentiment analysis codes were adapted from 
+Silge, J., Robinson, D. (2017). Text Mining with R: A Tidy Approach. O'Reilly.
 ```{r packages for sentiment}
 library(tidytext)
 library(textdata)
 nrc <- get_sentiments("nrc") 
 ```
 
+### Sentiments across all data
+
+#### 2018-2019 Reddit Posts
+```{r data 18-19 import}
+#this is the dataset with topics already assigned to them from python
+reddit1819 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit1819tm.csv", na.string = "")
+reddit1819$time_created <- anydate(reddit1819$time_created)
+colnames(reddit1819)
+reddit1819 <- reddit1819 %>%
+  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, created, body, author, author_flair, subreddit, alltext, topictext, Topic)
+```
+```{r tidy 18-19 w sentiment}
+tidy_r1819 <- reddit1819 %>%
+  unnest_tokens(word, topictext)
+
+tidy_r1819 %>%
+  inner_join(nrc) %>%
+  group_by(sentiment, Topic) %>%
+  count(sort = TRUE)
+```
+```{r sentiment afinn plot}
+
+tidy_r1819 %>%
+  inner_join(get_sentiments("afinn")) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  unite(ym, year, month, sep = "-") %>%
+  arrange(ym, .by_group = TRUE) %>%
+  summarise(sentiment = sum(value),
+            Topic = Topic,
+            index = ym) %>%
+  ggplot(aes(index, sentiment, fill = Topic)) +
+  geom_col(show.legend = FALSE) +
+  xlab("")+
+  facet_wrap(~Topic, ncol = 3) +
+  theme_bw()
+```
+```{r}
+tidy_r1819 %>%
+  inner_join(get_sentiments("bing")) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  unite(ym, year, month, sep = "-") %>%
+  arrange(ym, .by_group = TRUE) %>%
+  count(Topic, index = ym, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative) %>%
+  ggplot(aes(index, sentiment, fill = Topic)) +
+  geom_col(show.legend = FALSE) +
+  xlab("")+
+  facet_wrap(~Topic, ncol = 3) +
+  theme_bw()
+```
+Shows similar direction to afinn, but afinn has more variance, so I will keep afinn package
+#### 2020-2021 Reddit Posts
 ```{r data 20-21 import}
+#this is the dataset with topics already assigned to them from python with cleaned data
 reddit2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021tm.csv", na.string = "")
 reddit2021$time_created <- anydate(reddit2021$time_created)
 colnames(reddit2021)
@@ -834,11 +840,10 @@ reddit2021 <- reddit2021 %>%
   dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, created, body, author, author_flair, subreddit, alltext, topictext, Topic)
 ```
 
-```{r tidy data}
+```{r tidy 20-21 data}
 tidy_r2021 <- reddit2021 %>%
   unnest_tokens(word, topictext)
 ```
-Sentiment Analysis
 ```{r}
 tidy_r2021 %>%
   inner_join(nrc) %>%
@@ -852,7 +857,7 @@ tidy_r2021 %>%
   inner_join(get_sentiments("afinn")) %>%
   separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
   unite(ym, year, month, sep = "-") %>%
-  group_by(time_created) %>%
+  arrange(ym, .by_group = TRUE) %>%
   summarise(sentiment = sum(value),
             Topic = Topic,
             index = ym) %>%
@@ -863,28 +868,15 @@ tidy_r2021 %>%
   theme_bw()
 ```
 
-```{r}
-tidy_r2021 %>%
-  inner_join(get_sentiments("bing")) %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
-  unite(ym, year, month, sep = "-") %>%
-  group_by(time_created) %>%
-  count(Topic, index = ym, sentiment) %>%
-  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
-  mutate(sentiment = positive - negative) %>%
-  ggplot(aes(index, sentiment, fill = Topic)) +
-  geom_col(show.legend = FALSE) +
-  xlab("")+
-  facet_wrap(~Topic, ncol = 3) +
-  theme_bw()
-```
-What if we study the texts with higher engagement vs. lower engagement
+
+What if we find common topic across both data and see how they change over time
+### Sentiment and Engagement
+What if we study the posts with higher engagement vs. lower engagement 
 Run correlations?
 ```{r}
 nrc_small <- get_sentiments("nrc") %>%
   filter(sentiment %in% c("trust", "anticipation", "joy", 
                         "fear", "anger", "disgust", "sadness"))
-summary(reddit2021$comms_num) #split at the median of 33
 
 #just post titles
 res2021 <- reddit2021 %>%
@@ -904,7 +896,6 @@ colnames(res2021)
 res2021corr <- res2021 %>%
   dplyr::select(comms_num, score, upvote_ratio, joy, trust, anticipation, anger, disgust, fear, sadness)
 
-library(ggcorrplot)
 correlation_matrix <- round(cor(res2021corr),1)
 corrp.mat <- cor_pmat(res2021corr) #calculating p-vals
 
@@ -914,61 +905,162 @@ ggcorrplot(correlation_matrix, hc.order =TRUE,
 ```
 Fear and trust sentiments in the title are positively correlated with number of comments and upvote ratio
 
-Disgust and sadness are negatively correlated with upvote ratio
-
-What about comments?
+Disgust and sadness are negatively correlated with upvote_ratio
+### Zooming in: Change My View in 2020-2021
+What about comments? 
 
 ```{r}
+#all CMV posts
+posts2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018posts.csv", na.string = "")
+posts2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019posts.csv", na.string = "")
 posts2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020posts.csv", na.string = "")
 posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021posts.csv", na.string = "")
-reddit2021p <- rbind(posts2020, posts2021)
-reddit2021p <- reddit2021p[comms_num > 33,]
+cmvAllp <- rbind(posts2018, posts2019, posts2020, posts2021, fill = TRUE)
+cmvAllp <- cmvAllp[subreddit == "changemyview",]
 
+#all CMV comments
+comments2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018comments.csv", na.string = "")
+comments2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019comments.csv", na.string = "")
 comments2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020comments.csv", na.string = "")
 comments2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021comments.csv", na.string = "")
-reddit2021c <- rbind(comments2020, comments2021)
+redditAllc <- rbind(comments2018, comments2019, comments2020, comments2021, fill = TRUE)
+
 
 
 #just take comments from posts with more than 2 comments
-reddit2021c <- reddit2021c %>%
-  inner_join(reddit2021p, by = c("submission" = "id"))
-reddit2021c <- reddit2021c[!is.na(comment_body),]
+cmvAlldat <- cmvAllp %>%
+  left_join(redditAllc, by = c("id" = "submission"))
+#cmvAlldat <- cmvAlldat[!is.na(comment_body),]
 
-colnames(reddit2021c)
+colnames(cmvAlldat)
+cmvAlldat <- cmvAlldat %>%
+  dplyr::select(time_created, title, post_flair, score, upvote_ratio, id, comms_num, author, author_flair, subreddit, comment_id, comment_parent_id, comment_body, comment_score, comment_author, comment_issubmitter)
+
+cmvAlldat$time_created <- anydate(cmvAlldat$time_created)
+
+```
+Using code from Sanchez, G. (2021) Handling Strings With R http://www.gastonsanchez.com/r4strings
+
+Summary stats
+```{r}
+summary(cmvAlldat)
+```
+```{r tidy data}
+cmvAlldat$title <- tolower(cmvAlldat$title)
+cmvAlldat$comment_body <- tolower(cmvAlldat$comment_body)
+#cmvAlldat$comment_body <- lemmatize_strings(cmvAlldat$comment_body)
+#taking forever
+
+cmvAllcomm <- cmvAlldat %>%
+  unnest_tokens(word, comment_body) %>%
+  anti_join(stop_words)
+
+```
+Lexical Diversity from Quanteda package: https://tutorials.quanteda.io/statistical-analysis/lexdiv/
+Lexical diversity measures number of unique types of tokens and the length of a document. It is useful for analysing speakers' or writers' linguistic skills, or the complexity of ideas expressed in documents
+Also codes from: https://towardsdatascience.com/lyrics-analysis-5e1990070a4b
+```{r}
+library(quanteda)
+library(quanteda.textstats)
+
+
+corpus_cmv <- corpus(cmvAlldat, text_field = "comment_body")
+#get number of tokens in each comments
+docvars(corpus_cmv)$ntoken <- corpus_cmv %>%
+  ntoken()
+#filter out shorter comments
+corpus_cmv <- corpus_subset(corpus_cmv, ntoken > 10)
+
+  
+toks_cmv <- tokens(corpus_cmv)
+
+dfmat_cmv <- dfm(toks_cmv, remove = stopwords("en"))
+
+tstat_lexdiv <- textstat_lexdiv(dfmat_cmv, remove_numbers = TRUE, remove_hyphens = TRUE)
+
+#merge document back
+lexdiv_cmv <- bind_cols(docvars(corpus_cmv), tstat_lexdiv[,1:2])
+tail(lexdiv_cmv, 5)
 ```
 
-
 ```{r}
+#Study lexical diversity for people based on deltas
 
-afinn <- get_sentiments("afinn") 
- # summarise(sentiment = sum(value),
-          
+lexdiv_df <- lexdiv_cmv %>%
+  group_by(author_flair, author) %>%
+  summarize(count = n(),
+            postcomm = mean(comms_num),
+            score = mean(comment_score),
+            token_num = mean(ntoken),
+            lexdiv = mean(TTR)) %>%
+  mutate(delta = gsub("∆", "", author_flair))
+
+lexdiv_df <- lexdiv_df %>%
+  group_by(delta) %>%
+  summarize(redditors = n(),
+            post_num = mean(count),
+            comms_num = mean(postcomm),
+            comm_score = mean(score),
+            ntoken = mean(token_num),
+            rlexdiv = mean(lexdiv))
 
 
-comm2021 <- reddit2021c %>%
-  unnest_tokens(word, comment_body) %>%
-  inner_join(nrc_small) %>%
-  group_by(sentiment, comment_id)
+lexdiv_df <- lexdiv_df[-c(40:43),]
 
-setDT(comm2021)
-#make the frame longer so that each sentiment is a column 
-comm2021 <- dcast.data.table(comm2021, comment_id~sentiment, value.var= 'sentiment')
+  
 
-comm2021 <- comm2021 %>%
-  inner_join(reddit2021c, by = c("comment_id" = "comment_id")) %>%
-  separate(comment_parent_id, into = c("prefix", "comm_parent_id"), sep = "_") 
+lexdiv_df$delta <- as.numeric(lexdiv_df$delta)
 
-comm2021 <- comm2021  %>%
-  filter(prefix == "t3") #only select top level comments
-comm2021corr <- comm2021 %>%
-  dplyr::select(comment_score, joy, trust, anticipation, anger, disgust, fear, sadness)
+lexdiv_df[36,]$delta <- 7 #for some reason this row has to be assigned
+#lexdiv_df[40,]$delta <- 0
+
 
 #graph
-correlation_matrix <- round(cor(comm2021corr),1)
-corrp.mat <- cor_pmat(comm2021corr) #calculating p-vals
+correlation_matrix <- round(cor(lexdiv_df),1)
+corrp.mat <- cor_pmat(lexdiv_df) #calculating p-vals
 
 ggcorrplot(correlation_matrix, hc.order =TRUE, 
            type ="upper", p.mat = corrp.mat, insig="blank") 
+
+
 ```
 
-#still nothing
+Adding on sentiments
+```{r}
+#afinn <- get_sentiments("afinn") 
+ # summarise(sentiment = sum(value),
+
+cmvAllcomm <- cmvAllcomm %>%
+  inner_join(nrc_small) %>%
+  group_by(sentiment, comment_id) 
+
+setDT(cmvAllcomm)
+#make the frame longer so that each sentiment is a column 
+cmvAllcomm <- dcast.data.table(cmvAllcomm, comment_id~sentiment, value.var= 'sentiment')
+
+cmvAllcomm <- cmvAllcomm %>%
+  left_join(cmvAlldat, by = c("comment_id" = "comment_id")) %>%
+  separate(comment_parent_id, into = c("prefix", "comm_parent_id"), sep = "_") %>%
+  mutate(length = str_length(comment_body))
+
+cmvDelta <- cmvAllcomm  %>%
+  filter(post_flair == "[∆(s) from OP]" & prefix == "t3") #only select posts where the author changed their views and top level comments
+cmvDeltacorr <- cmvDelta %>%
+  dplyr::select(comment_score, length, joy, trust, anticipation, anger, disgust, fear, sadness)
+
+#graph
+correlation_matrix <- round(cor(cmvDeltacorr),1)
+corrp.mat <- cor_pmat(cmvDeltacorr) #calculating p-vals
+
+ggcorrplot(correlation_matrix, hc.order =TRUE, 
+           type ="upper", p.mat = corrp.mat, insig="blank") 
+
+```
+Fear, anger, and anticipation are positively correlated with comment score and getting the OP to change their minds; also slightly longer comments will get higher scores
+
+```{r}
+cmvAuthor <- cmvAllcomm %>%
+  group_by(author_flair) %>% #authors with delta 
+  summarize(count = n())
+```
+
