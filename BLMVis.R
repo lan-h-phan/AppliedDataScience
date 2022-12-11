@@ -268,7 +268,7 @@ stategeofacet <- c3allstate %>%
   geom_line(aes(y = `1`, color = "for BLM")) +
   geom_line(aes(y = `pvcount`, color = "police violence")) +
   #stat_difference(aes(ymin = `1`, ymax = `2`), alpha = .3) +
-  facet_geo(vars(state), grid = "us_state_grid1")
+  facet_geo(vars(state), strip.position = "bottom", grid = "us_state_grid1")
 
 stategeofacet <- stategeofacet +
   # Colors for the lines
@@ -331,4 +331,136 @@ stategeofacet
 #finally omg
 
 
+
+
+### Zooming in: Change My View from 2018-2021
+#What about comments? 
+  
+
+#all CMV posts
+cmvAllp <- rbind(reddit1819raw, reddit2021raw, fill = TRUE)
+cmvAllp <- cmvAllp[subreddit == "changemyview",]
+
+#just take comments from posts with more than 2 comments
+cmvAlldat <- cmvAllp %>%
+  left_join(reddit_tm)
+#cmvAlldat <- cmvAlldat[!is.na(comment_body),]
+
+colnames(cmvAlldat)
+
+
+#Using code from Sanchez, G. (2021) Handling Strings With R http://www.gastonsanchez.com/r4strings
+
+#Summary stats
+
+summary(cmvAlldat)
+
+#Lexical Diversity from Quanteda package: https://tutorials.quanteda.io/statistical-analysis/lexdiv/
+ # Lexical diversity measures number of unique types of tokens and the length of a document. It is useful for analysing speakers' or writers' linguistic skills, or the complexity of ideas expressed in documents
+#Also codes from: https://towardsdatascience.com/lyrics-analysis-5e1990070a4b
+library(quanteda)
+library(quanteda.textstats)
+
+
+corpus_cmv <- corpus(cmvAlldat, text_field = "finalcomment")
+#get number of tokens in each comments
+docvars(corpus_cmv)$ntoken <- corpus_cmv %>%
+  ntoken()
+#filter out shorter comments
+corpus_cmv <- corpus_subset(corpus_cmv, ntoken > 10)
+
+
+toks_cmv <- tokens(corpus_cmv)
+
+dfmat_cmv <- dfm(toks_cmv, remove = stopwords("en"))
+
+tstat_lexdiv <- textstat_lexdiv(dfmat_cmv, remove_numbers = TRUE, remove_hyphens = TRUE)
+
+#merge document back
+lexdiv_cmv <- bind_cols(docvars(corpus_cmv), tstat_lexdiv[,1:2])
+tail(lexdiv_cmv, 5)
+
+#Study lexical diversity for people based on deltas
+
+lexdiv_df <- lexdiv_cmv %>%
+  group_by(author_flair, author) %>%
+  summarize(count = n(),
+            postcomm = mean(comms_num),
+            score = mean(comment_score),
+            token_num = mean(ntoken),
+            lexdiv = mean(TTR)) %>%
+  mutate(delta = gsub("∆", "", author_flair)) %>%
+  ungroup()
+
+lexdiv_df <- lexdiv_df %>%
+  filter(!is.na(delta)) %>%
+  group_by(delta, author) %>%
+  summarize(redditors = n(),
+            post_num = mean(count),
+            comms_num = mean(postcomm),
+            comm_score = mean(score),
+            ntoken = mean(token_num),
+            rlexdiv = mean(lexdiv))
+
+
+lexdiv_df <- lexdiv_df[,-c(2,3)]
+lexdiv_df$delta <- as.numeric(lexdiv_df$delta)
+
+lexdiv_df[134,]$delta <- 7
+
+lexdiv_df <- lexdiv_df %>%
+  filter(!is.na(delta)) %>%
+  group_by(delta)#for some reason this row has to be assigned
+#lexdiv_df[40,]$delta <- 0
+
+
+#graph
+correlation_matrix <- round(cor(lexdiv_df),1)
+corrp.mat <- cor_pmat(lexdiv_df) #calculating p-vals
+
+ggcorrplot(correlation_matrix, hc.order =TRUE, 
+           type ="upper", p.mat = corrp.mat, insig="blank") 
+
+
+
+
+
+#Adding on sentiments
+
+#afinn <- get_sentiments("afinn") 
+# summarise(sentiment = sum(value),
+cmvAllcomm <- cmvAlldat %>%
+  unnest_tokens(word, finalcomment)
+
+
+cmvAllcomm <- cmvAllcomm %>%
+  inner_join(nrc_small) %>%
+  group_by(sentiment, comment_id) 
+
+setDT(cmvAllcomm)
+#make the frame longer so that each sentiment is a column 
+cmvAllcomm <- dcast.data.table(cmvAllcomm, comment_id~sentiment, value.var= 'sentiment')
+
+cmvAllcomm <- cmvAllcomm %>%
+  left_join(cmvAlldat, by = c("comment_id" = "comment_id")) %>%
+  separate(comment_parent_id, into = c("prefix", "comm_parent_id"), sep = "_") %>%
+  mutate(length = str_length(comment_body))
+
+cmvDelta <- cmvAllcomm  %>%
+  filter(post_flair == "[∆(s) from OP]" & prefix == "t3") #only select posts where the author changed their views and top level comments
+cmvDeltacorr <- cmvDelta %>%
+  dplyr::select(comment_score, length, joy, trust, anticipation, anger, disgust, fear, sadness)
+
+#graph
+correlation_matrix <- round(cor(cmvDeltacorr),1)
+corrp.mat <- cor_pmat(cmvDeltacorr) #calculating p-vals
+
+ggcorrplot(correlation_matrix, hc.order =TRUE, 
+           type ="upper", p.mat = corrp.mat, insig="blank") 
+
+#Fear, anger, and anticipation are positively correlated with comment score and getting the OP to change their minds; also slightly longer comments will get higher scores
+
+cmvAuthor <- cmvAllcomm %>%
+  group_by(author_flair) %>% #authors with delta 
+  summarize(count = n())
             

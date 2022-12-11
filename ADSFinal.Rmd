@@ -19,6 +19,7 @@ library(data.table)
 library(RColorBrewer)
 library(ggcorrplot)
 library(plotly)
+library(lubridate)
 ```
 
 # Tidy Data
@@ -178,8 +179,18 @@ c3allstate$`2`[is.na(c3allstate$`2`)] <- 1
 ```
 
 # Data Visualization
+```{r font}
+###Font Settings for graphs
+library(showtext)
+font_add_google("Fira Sans", family = "firasans")
+font_add_google("Lato", family = "lato")
+
+font_add_google("Fira Sans", family = "firasans")
+font_add_google("Lato", family = "lato")
+```
 
 ## Descriptive Stats
+Summaries of different datasets are embedded throughout the markdown document.
 
 ## Heatmap Maps! 
 
@@ -198,7 +209,6 @@ usmap <- read_sf("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/A
 #Bridge-building Organizations
 bdidat <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/bridging-organizations-data-2022-11-21.csv")
 
-best_col = colorRamp2(c(-2, 0, 2), c("#82A3FF", "grey", "#8B2E2E"))
 
 choroplot <- bdidat %>%
   group_by(state) %>%
@@ -215,25 +225,45 @@ choroplot <- st_as_sf(choroplot)
 
 
 #### Just by count
-ggchoroplot <- choroplot %>% 
+choroplot %>% 
   ggplot(aes(fill = count)) + # create a ggplot object and 
   # change its fill colour according to median_age
   geom_sf(colour = NA) +# plot all local authority geometries 
   scale_fill_gradient(low = "#82A3FF", 
                       high = "#8B2E2E", na.value = "white") +
   coord_sf(xlim = c(-180, -60), lims_method = "box") + #just zoom in the U.S.
-  theme_void() #remove background
+  theme_void() +
+  theme(
+    # Top-right position
+    #legend.pos = c(0.875, 0.2),
+    # No legend title
+    legend.title = element_blank(),
+    legend.text = element_text(color = "grey20", size = 8),
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
 
-ggchoroplot #looks nicer than when with plotly
+#  theme(plot.background = element_rect(fill = "#F5F4EF", color = NA))
+
 
 #also work with plotly
-ggplotly(ggchoroplot)
+#ggplotly(ggchoroplot)
+
+
 #finally omg
 #so beautiful imma cry
 
 ```
 
-## Changes of tweets and police violence over time
+## Changes of Tweets and Police Violence Over Time
 
 ```{r line plot}
 library(geofacet)
@@ -308,6 +338,9 @@ tweetcount %>%
     strip.text = element_text(face = "bold", color = "grey20")
   )
 
+```
+```{r}
+
 ###Just 2018-2019 
 tweetcount %>%
   filter(year %in% c("2018","2019")) %>%
@@ -364,6 +397,8 @@ tweetcount %>%
     # Specify face and color for the text on top of each panel/facet
     strip.text = element_text(face = "bold", color = "grey20")
   )
+```
+```{r}
 
 #just 2020-2021
 tweetcount %>%
@@ -459,7 +494,7 @@ stategeofacet <- c3allstate %>%
   geom_line(aes(y = `1`, color = "for BLM")) +
   geom_line(aes(y = `pvcount`, color = "police violence")) +
   #stat_difference(aes(ymin = `1`, ymax = `2`), alpha = .3) +
-  facet_geo(vars(state), grid = "us_state_grid1")
+  facet_geo(vars(state), strip.position = "bottom", grid = "us_state_grid1")
 
 stategeofacet <- stategeofacet +
   # Colors for the lines
@@ -527,9 +562,11 @@ stategeofacet
 
 ## Topic Modeling 
 
-Because of historical effects, per Dr. Bowers' recommendations, I will group 2018-2019 data together and compare them against 2020-2021 data. 
+Because of historical effects, per Dr. Bowers' recommendations, I will group 2018-2019 data together and compare them against 2020-2021 data. As discussed in class, the dataset is too large for R to realistically run in time. As a result, I had to run analyses with Python on Google Colab. 
 
-The codes are from 
+However, I have used the codes below to run smaller subset to test, so I will still present the R codes in this document without running them. 
+
+The codes are from:
 
 Bowers, A.J., Chen, J.(2015) Ask and Ye Shall Receive? Automated Text Mining of Michigan Capital Facility Finance Bond Election Proposals to Identify which Topics are Associated with Bond Passage and Voter Turnout. Journal of Education Finance, 41(2), p.164-196. http://dx.doi.org/10.7916/D8FJ2GDH
 
@@ -837,7 +874,7 @@ We can see that we are still discussing many of the same topics before the summe
 
 However, there were a few differences. For example, we saw a rise in destructive engagement in these spaces that was not the case in the year prior. For policing, we saw discussions shift from police brutality (bringing awareness to reality) to police reform (moving towards solution). In addition, in 2018-2019, conversations regarding race were mostly about systemic racism while in 2020-2021 we saw attention towards the rise of White nationalism. 
 
-**Visualizing Topic Popularity Overtime**
+## Visualizing Topic Popularity Overtime
 
 ```{r data 18-19 import}
 #this is the dataset with topics already assigned to them from python
@@ -850,6 +887,17 @@ reddit1819$theme <- factor(reddit1819$Topic, levels = c(0,1,2,3,4,5,6,7,8,9) ,la
 reddit1819 <- reddit1819 %>%
   dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, body, author, author_flair, subreddit, alltext, manualtext, Topic, theme) %>%
   separate(time_created, into = c("year", "month", "date"), sep = "-")
+
+reddit1819 %>%
+  group_by(year) %>%
+  count() #not sure why 2019 is being shown as 1969 and 1970
+#i double checked to see whether there was actually no 2019 data, but it was definitely 2019 data 
+#with the original data set, the years showed as 2019
+
+#manually reassign values for 2019
+reddit1819[year == "1969",]$year <- 2019
+reddit1819[year == "1970",]$year <- 2019
+
 ```
 
 
@@ -867,21 +915,79 @@ reddit2021 <- reddit2021 %>%
 
 #all topics
 reddit_tm <- bind_rows(reddit1819, reddit2021)
+
+reddit_tm <- reddit_tm %>%
+  unite(time_created, year, month, date, sep = "-", remove = FALSE) 
+reddit_tm$time_created <- ymd(reddit_tm$time_created) #convert to date variable
+
+#this will make visualization looks prettier later by ordering factor
+reddit_tm$theme <- factor(reddit_tm$theme, levels = c("Race & Crime", "Police Brutality", "Police Reform", "Constructive Engagement","Systemic Racism", "Destructive Engagement", "Gun Control", "Mass Shooting", "Protest & Riot", "Politics", "Surveillance", "White Nationalism"))
+  
 ```
 
-```{r topic over time}
+```{r same 4 topic time}
 reddit_tm %>%
-  filter(!(theme == "Removed" | theme == "Removed2")) %>%
   filter(theme %in% c("Politics", "Gun Control", "Constructive Engagement", "Race & Crime"))%>%
   group_by(year, month, theme) %>%
-  dplyr::summarize(count = n()) %>%
-  unite(ym, year, month, sep = "-", remove = FALSE)  %>%
-  ggplot(aes(x = ym, group = 1)) +
+  mutate(count = n()) %>%
+  ggplot(aes(x = time_created)) +
   geom_line(aes(y = count)) +
-  facet_wrap(~theme, ncol = 2) +
-  labs(x = NULL, y = NULL) +
-  scale_x_discrete(breaks = NULL, labels = NULL) +
-  theme_bw()
+  facet_wrap(~theme, ncol = 1, strip.position = "bottom") +
+  theme_minimal() +
+  labs(title = "Evolution of Four Topics, from 2018-2021") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+```
+
+```{r all topic over time}
+reddit_tm %>%
+  filter(!(theme == "Removed" | theme == "Removed2")) %>%
+  group_by(year, month, theme) %>%
+  mutate(count = n()) %>%
+  ggplot(aes(x = time_created)) +
+  geom_line(aes(y = count)) +
+  facet_wrap(~theme, ncol = 3, strip.position = "bottom") +
+  theme_minimal() +
+  labs(title = "Evolution of All Topics, from 2018-2021") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+
 ```
 
 
@@ -891,28 +997,22 @@ Silge, J., Robinson, D. (2017). Text Mining with R: A Tidy Approach. O'Reilly.
 ```{r packages for sentiment}
 library(tidytext)
 library(textdata)
-nrc <- get_sentiments("nrc") 
+nrc_di <- get_sentiments("nrc") %>%
+  filter(sentiment %in% c("positive", "negative"))
 ```
 
-### Sentiments across all data
-
-#### 2018-2019 Reddit Posts
+### 2018-2019 Reddit Posts
 
 ```{r tidy 18-19 w sentiment}
 tidy_r1819 <- reddit1819 %>%
   filter(!(Topic == 2 | Topic == 5)) %>%
   unnest_tokens(word, manualtext)
-
-tidy_r1819 %>%
-  inner_join(get_sentiments("nrc")) %>%
-  group_by(sentiment, theme) %>%
-  count(sort = TRUE)
 ```
+
 ```{r sentiment afinn plot}
 
 tidy_r1819 %>%
   inner_join(get_sentiments("afinn")) %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-") %>%
   unite(ym, year, month, sep = "-") %>%
   arrange(ym, .by_group = TRUE) %>%
   summarise(sentiment = sum(value),
@@ -921,13 +1021,37 @@ tidy_r1819 %>%
   ggplot(aes(index, sentiment, fill = theme)) +
   geom_col(show.legend = FALSE) +
   xlab("")+
-  facet_wrap(~theme, ncol = 3) +
-  theme_bw()
+  facet_wrap(~theme, ncol = 4) +
+  scale_fill_brewer(palette = "Paired") +
+  scale_x_discrete(breaks = c("2018-01", "2019-01", "2020-01", "2021-01"), labels = c("2018", "2019", "2020", "2021")) +
+  theme_minimal() +
+  labs(title = "'afinn' Topic Sentiment Over Time, 2018-2019",
+       caption = "Values below 0 indicate more negative sentiment") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 6),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20", size = 8)
+  )
+
 ```
 ```{r}
 tidy_r1819 %>%
-  inner_join(get_sentiments("bing")) %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-") %>%
+  inner_join(nrc_di) %>%
   unite(ym, year, month, sep = "-") %>%
   arrange(ym, .by_group = TRUE) %>%
   count(theme, index = ym, sentiment) %>%
@@ -936,51 +1060,234 @@ tidy_r1819 %>%
   ggplot(aes(index, sentiment, fill = theme)) +
   geom_col(show.legend = FALSE) +
   xlab("")+
-  facet_wrap(~theme, ncol = 3) +
-  theme_bw()
+  scale_x_discrete(breaks = NULL, labels = NULL) +
+  scale_fill_brewer(palette = "Paired") +
+  scale_x_discrete(breaks = c("2018-01", "2019-01", "2020-01", "2021-01"), labels = c("2018", "2019", "2020", "2021")) +
+  facet_wrap(~theme, ncol = 4) +
+  theme_minimal() +
+  labs(title = "'nrc' Topic Sentiment Over Time, 2018-2019", 
+       caption = "Values below 0 indicate more negative sentiment") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 6),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20", size = 8)
+  )
+
 ```
-Shows similar direction to afinn, but afinn has more variance, so I will keep afinn package
-#### 2020-2021 Reddit Posts
-```{r data 20-21 import}
-#this is the dataset with topics already assigned to them from python with cleaned data
-reddit2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021tm.csv", na.string = "")
-reddit2021$time_created <- anydate(reddit2021$time_created)
-colnames(reddit2021)
-reddit2021 <- reddit2021 %>%
-  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, body, author, author_flair, subreddit, alltext, manualtext, Topic)
-```
+Shows similar direction to afinn; afinn has more variance but less positive
+### 2020-2021 Reddit Posts
 
 ```{r tidy 20-21 data}
 tidy_r2021 <- reddit2021 %>%
+  filter(!(Topic == 1 | Topic == 5)) %>%
   unnest_tokens(word, manualtext)
 ```
-```{r}
-tidy_r2021 %>%
-  inner_join(get_sentiments("nrc")) %>%
-  group_by(sentiment, Topic) %>%
-  count(sort = TRUE)
-```
 
-```{r sentiment plot}
 
+```{r sentiment 20-21}
 tidy_r2021 %>%
-  inner_join(get_sentiments("afinn")) %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  inner_join(nrc_di) %>%
   unite(ym, year, month, sep = "-") %>%
   arrange(ym, .by_group = TRUE) %>%
-  summarise(sentiment = sum(value),
-            Topic = Topic,
-            index = ym) %>%
-  ggplot(aes(index, sentiment, fill = Topic)) +
+  count(theme, index = ym, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative) %>%
+  ggplot(aes(index, sentiment, fill = theme)) +
   geom_col(show.legend = FALSE) +
   xlab("")+
-  facet_wrap(~Topic, ncol = 3) +
-  theme_bw()
+  scale_x_discrete(breaks = c("2018-01", "2019-01", "2020-01", "2021-01"), labels = c("2018", "2019", "2020", "2021")) +
+  scale_fill_brewer(palette = "Paired") +
+  facet_wrap(~theme, ncol = 4) +
+  theme_minimal() +
+  labs(title = "'nrc' Topic Sentiment Over Time, 2020-2021", 
+       caption = "Values below 0 indicate more negative sentiment") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 6),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20", size = 8)
+  )
+```
+
+### Across All Data
+```{r tidy 4 topics sentiment}
+tidy_r1821<- reddit_tm %>%
+  filter(theme %in% c("Politics", "Gun Control", "Constructive Engagement", "Race & Crime"))%>%
+  unnest_tokens(word, manualtext)
+
+tidy_r1821 %>%
+  inner_join(nrc_di) %>%
+  unite(ym, year, month, sep = "-") %>%
+  arrange(ym, .by_group = TRUE) %>%
+  count(theme, index = ym, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative) %>%
+  ggplot(aes(index, sentiment, fill = theme)) +
+  geom_col(show.legend = FALSE) +
+  xlab("")+
+  scale_fill_brewer(palette = "Paired") +
+  scale_x_discrete(breaks = c("2018-01", "2019-01", "2020-01", "2021-01"), labels = c("2018", "2019", "2020", "2021")) +
+  facet_wrap(~theme, ncol = 1, strip.position = "bottom") +
+  theme_minimal() +
+  labs(title = "Topic Sentiment Over Time, from 2018-2021") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+
+```
+
+## Lexical Diversity 
+Lexical Diversity from Quanteda package: https://tutorials.quanteda.io/statistical-analysis/lexdiv/
+Lexical diversity measures number of unique types of tokens and the length of a document. It is useful for analysing speakers' or writers' linguistic skills, or the complexity of ideas expressed in documents
+Also codes from: https://towardsdatascience.com/lyrics-analysis-5e1990070a4b
+```{r}
+library(quanteda)
+library(quanteda.textstats)
+
+reddit_4tm <- reddit_tm 
+  
+
+corpus_1821 <- corpus(reddit_4tm, text_field = "manualtext")
+#get number of tokens in each comments
+docvars(corpus_1821)$ntoken <- corpus_1821 %>%
+  ntoken()
+#filter out shorter posts and comments
+corpus_1821 <- corpus_subset(corpus_1821, ntoken > 10)
+
+  
+toks_1821 <- tokens(corpus_1821)
+
+dfmat_1821 <- dfm(toks_1821, remove = stopwords("en"))
+
+tstat_lexdiv <- textstat_lexdiv(dfmat_1821, remove_numbers = TRUE, remove_hyphens = TRUE)
+
+#merge document back
+lexdiv_1821 <- bind_cols(docvars(corpus_1821), tstat_lexdiv[,1:2])
+
+
+#order factor levels so that visualization will look more pretty later
+lexdiv_1821$theme <- factor(lexdiv_1821$theme, levels = c("Race & Crime", "Police Brutality", "Police Reform", "Constructive Engagement","Systemic Racism", "Destructive Engagement", "Gun Control", "Mass Shooting", "Protest & Riot", "Politics", "Surveillance", "White Nationalism"))
+
+
+colnames(lexdiv_1821)
+```
+
+```{r}
+lexdiv_1821 %>%
+  filter(theme %in% c("Politics", "Gun Control", "Constructive Engagement", "Race & Crime"))%>%
+  group_by(year, month, theme) %>%
+  mutate(lexdiv = mean(TTR)) %>%
+  ggplot(aes(x = time_created)) +
+  geom_line(aes(y = lexdiv)) +
+  facet_wrap(~theme, ncol = 2, strip.position = "bottom") +
+  theme_minimal() +
+  labs(title = "Lexical Diversity Over Time, from 2018-2021") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+
+
 ```
 
 
-What if we find common topic across both data and see how they change over time
-### Sentiment and Engagement
+```{r lexdiv graph}
+lexdiv_1821 %>%
+  filter(!(theme == "Removed" | theme == "Removed2")) %>%
+  group_by(year, month, theme) %>%
+  mutate(lexdiv = mean(TTR)) %>%
+  ggplot(aes(x = time_created)) +
+  geom_line(aes(y = lexdiv)) +
+  facet_wrap(~theme, ncol = 3, strip.position = "bottom") +
+  theme_minimal() +
+  labs(title = "Lexical Diversity for All Topics, from 2018-2021") +
+  theme(
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+
+```
+
+
+## Correlations: Sentiment and Engagement
 What if we study the posts with higher engagement vs. lower engagement 
 Run correlations?
 ```{r}
@@ -991,7 +1298,7 @@ reddit1819raw <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/clean18
 reddit1819raw$time_created <- anydate(reddit1819raw$time_created)
 colnames(reddit1819raw)
 reddit1819raw <- reddit1819raw %>%
-  dplyr::select(id, time_created, finaltitle, finalcomment, post_flair, score, upvote_ratio, comms_num, title, body, author, author_flair, subreddit)
+  dplyr::select(id, time_created, finaltitle, post_flair, score, upvote_ratio, comms_num, title, body, author, author_flair, comment_id, comment_parent_id, finalcomment, comment_score, comment_author, subreddit)
 
 #just post titles
 res1819raw <- reddit1819raw %>%
@@ -1016,178 +1323,105 @@ correlation_matrix <- round(cor(res1819corr),1)
 corrp.mat <- cor_pmat(res1819corr) #calculating p-vals
 
 ggcorrplot(correlation_matrix, hc.order =TRUE, 
-           type ="upper", p.mat = corrp.mat, insig="blank") 
+           type ="upper", p.mat = corrp.mat, insig="blank") +
+  theme_minimal() +
+  labs(title = "Correlation: Engagement and Sentiment, 2018-2019") +
+  theme(
+    # Elements within a guide are placed one next to the other in the same row
+    legend.direction = "vertical",
+    # No legend title
+    legend.title = element_blank(),
+    legend.text = element_text(color = "grey20", size = 8),
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 11, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 6),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20", size = 8)
+  )
 
 ```
 Fear, sadness, anger, disgust, anticipation, and trust sentiments in the title are positively correlated with number of comments and score. Joy is negatively correlated with comment numbers. 
-```{r}
-#scatterplot by topics
 
-res1819raw %>%
+```{r}
+#for 20-21
+reddit2021raw <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/clean2021raw.csv", na.string = "")
+reddit2021raw$time_created <- anydate(reddit2021raw$time_created)
+colnames(reddit2021raw)
+reddit2021raw <- reddit2021raw %>%
+  dplyr::select(id, time_created, finaltitle, post_flair, score, upvote_ratio, comms_num, title, body, author, author_flair, comment_id, comment_parent_id, finalcomment, comment_score, comment_author, subreddit)
+
+#just post titles
+res2021raw <- reddit2021raw %>%
   group_by(id) %>%
-  pivot_longer(cols = c("anger", "fear", "sadness", "disgust", "trust", "joy", "anticipation"), names_to = "sentiment", values_to = "count") %>%
-  dplyr::select(comms_num, score, upvote_ratio, count, sentiment) %>%
-  ggplot(aes(x = comms_num, y = count, color = sentiment)) +
-  geom_point(aes(fill = sentiment))  +
-  scale_colour_brewer(palette = "BuPu") 
-```
-
-
-### Zooming in: Change My View in 2020-2021
-What about comments? 
-
-```{r}
-#all CMV posts
-posts2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018posts.csv", na.string = "")
-posts2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019posts.csv", na.string = "")
-posts2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020posts.csv", na.string = "")
-posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021posts.csv", na.string = "")
-cmvAllp <- rbind(posts2018, posts2019, posts2020, posts2021, fill = TRUE)
-cmvAllp <- cmvAllp[subreddit == "changemyview",]
-
-#all  comments
-comments2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018comments.csv", na.string = "")
-comments2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019comments.csv", na.string = "")
-comments2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020comments.csv", na.string = "")
-comments2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021comments.csv", na.string = "")
-redditAllc <- rbind(comments2018, comments2019, comments2020, comments2021, fill = TRUE)
-
-
-
-#just take comments from posts with more than 2 comments
-cmvAlldat <- cmvAllp %>%
-  left_join(redditAllc, by = c("id" = "submission"))
-#cmvAlldat <- cmvAlldat[!is.na(comment_body),]
-
-colnames(cmvAlldat)
-cmvAlldat <- cmvAlldat %>%
-  dplyr::select(time_created, title, post_flair, score, upvote_ratio, id, comms_num, author, author_flair, subreddit, comment_id, comment_parent_id, comment_body, comment_score, comment_author, comment_issubmitter)
-
-cmvAlldat$time_created <- anydate(cmvAlldat$time_created)
-
-```
-Using code from Sanchez, G. (2021) Handling Strings With R http://www.gastonsanchez.com/r4strings
-
-Summary stats
-```{r}
-summary(cmvAlldat)
-```
-```{r tidy data}
-cmvAlldat$title <- tolower(cmvAlldat$title)
-cmvAlldat$comment_body <- tolower(cmvAlldat$comment_body)
-#cmvAlldat$comment_body <- lemmatize_strings(cmvAlldat$comment_body)
-#taking forever
-
-cmvAllcomm <- cmvAlldat %>%
-  unnest_tokens(word, comment_body) %>%
-  anti_join(stop_words)
-
-```
-Lexical Diversity from Quanteda package: https://tutorials.quanteda.io/statistical-analysis/lexdiv/
-Lexical diversity measures number of unique types of tokens and the length of a document. It is useful for analysing speakers' or writers' linguistic skills, or the complexity of ideas expressed in documents
-Also codes from: https://towardsdatascience.com/lyrics-analysis-5e1990070a4b
-```{r}
-library(quanteda)
-library(quanteda.textstats)
-
-
-corpus_cmv <- corpus(cmvAlldat, text_field = "comment_body")
-#get number of tokens in each comments
-docvars(corpus_cmv)$ntoken <- corpus_cmv %>%
-  ntoken()
-#filter out shorter comments
-corpus_cmv <- corpus_subset(corpus_cmv, ntoken > 10)
-
-  
-toks_cmv <- tokens(corpus_cmv)
-
-dfmat_cmv <- dfm(toks_cmv, remove = stopwords("en"))
-
-tstat_lexdiv <- textstat_lexdiv(dfmat_cmv, remove_numbers = TRUE, remove_hyphens = TRUE)
-
-#merge document back
-lexdiv_cmv <- bind_cols(docvars(corpus_cmv), tstat_lexdiv[,1:2])
-tail(lexdiv_cmv, 5)
-```
-
-```{r}
-#Study lexical diversity for people based on deltas
-
-lexdiv_df <- lexdiv_cmv %>%
-  group_by(author_flair, author) %>%
-  summarize(count = n(),
-            postcomm = mean(comms_num),
-            score = mean(comment_score),
-            token_num = mean(ntoken),
-            lexdiv = mean(TTR)) %>%
-  mutate(delta = gsub("∆", "", author_flair))
-
-lexdiv_df <- lexdiv_df %>%
-  group_by(delta) %>%
-  summarize(redditors = n(),
-            post_num = mean(count),
-            comms_num = mean(postcomm),
-            comm_score = mean(score),
-            ntoken = mean(token_num),
-            rlexdiv = mean(lexdiv))
-
-
-lexdiv_df <- lexdiv_df[-c(40:43),]
-
-  
-
-lexdiv_df$delta <- as.numeric(lexdiv_df$delta)
-
-lexdiv_df[36,]$delta <- 7 #for some reason this row has to be assigned
-#lexdiv_df[40,]$delta <- 0
-
-
-#graph
-correlation_matrix <- round(cor(lexdiv_df),1)
-corrp.mat <- cor_pmat(lexdiv_df) #calculating p-vals
-
-ggcorrplot(correlation_matrix, hc.order =TRUE, 
-           type ="upper", p.mat = corrp.mat, insig="blank") 
-
-
-```
-
-Adding on sentiments
-```{r}
-#afinn <- get_sentiments("afinn") 
- # summarise(sentiment = sum(value),
-
-cmvAllcomm <- cmvAllcomm %>%
+  unnest_tokens(word, finaltitle) %>%
   inner_join(nrc_small) %>%
-  group_by(sentiment, comment_id) 
+  group_by(sentiment)# %>%
+  #mutate(count = n())
 
-setDT(cmvAllcomm)
+setDT(res2021raw)
 #make the frame longer so that each sentiment is a column 
-cmvAllcomm <- dcast.data.table(cmvAllcomm, comment_id~sentiment, value.var= 'sentiment')
+res2021raw <- dcast.data.table(res2021raw, id~sentiment, value.var= 'sentiment')
 
-cmvAllcomm <- cmvAllcomm %>%
-  left_join(cmvAlldat, by = c("comment_id" = "comment_id")) %>%
-  separate(comment_parent_id, into = c("prefix", "comm_parent_id"), sep = "_") %>%
-  mutate(length = str_length(comment_body))
+res2021raw <- res2021raw %>%
+  inner_join(reddit2021raw, by = c("id" = "id"))
 
-cmvDelta <- cmvAllcomm  %>%
-  filter(post_flair == "[∆(s) from OP]" & prefix == "t3") #only select posts where the author changed their views and top level comments
-cmvDeltacorr <- cmvDelta %>%
-  dplyr::select(comment_score, length, joy, trust, anticipation, anger, disgust, fear, sadness)
+colnames(res2021raw)
+res2021corr <- res2021raw %>%
+  dplyr::select(comms_num, score, upvote_ratio, joy, trust, anticipation, anger, disgust, fear, sadness)
 
-#graph
-correlation_matrix <- round(cor(cmvDeltacorr),1)
-corrp.mat <- cor_pmat(cmvDeltacorr) #calculating p-vals
+correlation_matrix <- round(cor(res2021corr),1)
+corrp.mat <- cor_pmat(res2021corr) #calculating p-vals
 
 ggcorrplot(correlation_matrix, hc.order =TRUE, 
-           type ="upper", p.mat = corrp.mat, insig="blank") 
+           type ="upper", p.mat = corrp.mat, insig="blank") +
+  theme_minimal() +
+  labs(title = "Correlation: Engagement and Sentiment, 2018-2019") +
+  theme(
+    # Elements within a guide are placed one next to the other in the same row
+    legend.direction = "vertical",
+    # No legend title
+    legend.title = element_blank(),
+    legend.text = element_text(color = "grey20", size = 8),
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, 10, 0), 
+      size = 11, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 6),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20", size = 8)
+  )
+
 
 ```
-Fear, anger, and anticipation are positively correlated with comment score and getting the OP to change their minds; also slightly longer comments will get higher scores
 
-```{r}
-cmvAuthor <- cmvAllcomm %>%
-  group_by(author_flair) %>% #authors with delta 
-  summarize(count = n())
-```
+It seems that unlike 2018-2019, 2020 and 2021 posts with more positive sentiments get higher engagement while disgust had no significant correlation with engagement. 
+
+**[End of Document]**
+
+
+
 
