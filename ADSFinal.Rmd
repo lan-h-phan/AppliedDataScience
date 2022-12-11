@@ -153,13 +153,6 @@ censusdat <- censusdat %>%
          rOther = Other/ PopEstimate,
          rMixed = `Inter-racial`/ PopEstimate)
 
-#police violence data
-policeviolence <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/policeviolence2018-2021.csv")
-
-
-#tweet count related to BLM 
-tweetcount <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/blmtweetcount2018-2021.csv")
-
 #demonstrations count 2018
 c3compiled <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/c3clean.csv")
 
@@ -187,160 +180,6 @@ c3allstate$`2`[is.na(c3allstate$`2`)] <- 1
 # Data Visualization
 
 ## Descriptive Stats
-Also here to map tweets over time change: https://www.statology.org/sum-specific-rows-in-r/
-## Heatmap
-
-```{r}
-#packages
-library(ComplexHeatmap)
-library(hopach) 
-library(circlize)
-```
-
-```{r}
-
-#function uncentered correlation and average linkage
-uncenter.dist<-function(m) {
-  as.dist(as.matrix(distancematrix(m, d="cosangle")))
-}
-
-
-best_col = colorRamp2(c(-2, 0, 2), c("#82A3FF", "grey", "#8B2E2E"))
-
-
-#Setting up= for the 2018 heatmap
-
-
-pvsum2018 <- policeviolence %>%
-  filter(year == 2018) %>%
-  group_by(state) %>%
-  summarize(PoliceViolence = n())
-
-
-datsum2018 <- censusdat %>%
-  left_join(statetranslation,
-             by = c("NAME" = "Name"))
-
-datsum2018 <- datsum2018 %>%
-  left_join(pvsum2018,
-            by = c("Abbrev" = "state")) %>%
-  mutate(
-         rPoliceViolence = (PoliceViolence/ PopEstimate)*100) %>%
-  dplyr::select(NAME,
-         rWhite, rBlack, rNative, rAsian, rOther, rMixed,
-         rPoliceViolence)
-
-hm2018dat<-datsum2018[, c(2:8)]
-
-#name the heatmap rows to their states
-rownames(hm2018dat) <- datsum2018$NAME
-
-#z-scoring the data
-hm2018dat.scale<-scale(hm2018dat)
-
-#uncentered correlation and average linkage
-
-row.clus18<-hclust(uncenter.dist(hm2018dat.scale), method = "ave")
-col.clus18<-hclust(uncenter.dist(t(hm2018dat.scale)), method = "ave")
-
-ht2018 = Heatmap(hm2018dat.scale, name = "2018 Heatmap", 
-        cluster_rows=row.clus18, cluster_columns=col.clus18, 
-        na_col = "white", col = best_col,
-        row_names_gp = gpar(fontsize = 5))
-
-```
-
-```{r}
-#2019 Heatmap
-
-#Setting up for the 2019 heatmap
-
-
-pvsum2019 <- policeviolence %>%
-  filter(year == 2019) %>%
-  group_by(state) %>%
-  summarize(PoliceViolence = n())
-
-
-datsum2019 <- censusdat %>%
-  left_join(statetranslation,
-             by = c("NAME" = "Name"))
-
-datsum2019 <- datsum2019 %>%
-  left_join(pvsum2019,
-            by = c("Abbrev" = "state")) %>%
-  mutate(
-         rPoliceViolence = (PoliceViolence/ PopEstimate)*100) %>%
-  dplyr::select(NAME,
-         rWhite, rBlack, rNative, rAsian, rOther, rMixed,
-         rPoliceViolence)
-
-hm2019dat<-datsum2019[, c(2:8)]
-
-#name the heatmap rows to their states
-rownames(hm2019dat) <- datsum2019$NAME
-
-#z-scoring the data
-hm2019dat.scale<-scale(hm2019dat)
-
-#uncentered correlation and average linkage
-
-row.clus19<-hclust(uncenter.dist(hm2019dat.scale), method = "ave")
-col.clus19<-hclust(uncenter.dist(t(hm2019dat.scale)), method = "ave")
-
-ht2019 = Heatmap(hm2019dat.scale, name = "2019 Heatmap", 
-        cluster_rows=row.clus19, cluster_columns=col.clus19, 
-        na_col = "white", col = best_col,
-        row_names_gp = gpar(fontsize = 5))
-```
-
-```{r}
-#2020 Heatmap
-
-
-pvsum2020 <- policeviolence %>%
-  filter(year == 2020) %>%
-  group_by(state) %>%
-  summarize(PoliceViolence = n())
-
-
-datsum2020 <- censusdat %>%
-  left_join(statetranslation,
-             by = c("NAME" = "Name"))
-
-datsum2020 <- datsum2020 %>%
-  left_join(pvsum2020,
-            by = c("Abbrev" = "state")) %>%
-  mutate(
-         rPoliceViolence = (PoliceViolence/ PopEstimate)*100) %>%
-  dplyr::select(NAME,
-         rWhite, rBlack, rNative, rAsian, rOther, rMixed,
-         rPoliceViolence)
-
-hm2020dat<-datsum2020[, c(2:8)]
-
-#name the heatmap rows to their states
-rownames(hm2020dat) <- datsum2020$NAME
-
-#z-scoring the data
-hm2020dat.scale<-scale(hm2020dat)
-
-#uncentered correlation and average linkage
-
-row.clus20<-hclust(uncenter.dist(hm2020dat.scale), method = "ave")
-col.clus20<-hclust(uncenter.dist(t(hm2020dat.scale)), method = "ave")
-
-ht2020 = Heatmap(hm2020dat.scale, name = "2020 Heatmap", 
-        cluster_rows=row.clus20, cluster_columns=col.clus20, 
-        na_col = "white", col = best_col,
-        row_names_gp = gpar(fontsize = 5))
-```
-
-```{r}
-
-ht2018
-ht2019 + ht2020
-```
 
 ## Heatmap Maps! 
 
@@ -352,13 +191,14 @@ Maybe do this for bridge-building orgs
 library(leaflet)
 library(sf)
 
+
 #importing the shape of the U.S.
 usmap <- read_sf("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/gz_2010_us_040_00_5m.json")
 
 #Bridge-building Organizations
 bdidat <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/Resonance/BLM/bridging-organizations-data-2022-11-21.csv")
 
-
+best_col = colorRamp2(c(-2, 0, 2), c("#82A3FF", "grey", "#8B2E2E"))
 
 choroplot <- bdidat %>%
   group_by(state) %>%
@@ -393,6 +233,199 @@ ggplotly(ggchoroplot)
 
 ```
 
+## Changes of tweets and police violence over time
+
+```{r line plot}
+library(geofacet)
+library(ggh4x)
+
+
+#tweet count related to BLM 
+tweetcount <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/blmtweetcount2018-2021.csv")
+
+tweetcount <- tweetcount %>%
+  group_by(year, month) %>%
+  dplyr::summarize(blm = sum(blm, na.rm = TRUE),
+            alm = sum(alm, na.rm = TRUE),
+            blulm = sum(blulm, na.rm = TRUE)) %>%
+  mutate(against = alm + blulm) %>%
+  unite(ym, year, month, sep = "-", remove = FALSE) 
+
+
+#all dat
+tweetcount %>%
+  ggplot(aes(x = ym, group = 1)) +
+  geom_line(aes(y = blm, color = "#BlackLivesMatter")) +
+  geom_line(aes(y = against, color = "#All/BlueLivesMatter")) +
+  stat_difference(aes(ymin = against, ymax = blm), alpha = 0.3) +
+  scale_color_manual(values = c("#C32E5A", "#3D85F7")) +
+  scale_fill_manual(
+    values = c(
+      colorspace::lighten("#3D85F7"), 
+      colorspace::lighten("#C32E5A"),
+      "grey60"),
+    labels = c("more BLM", "more counter-protest")
+  ) +
+  # Add labels
+  labs(
+    title = "Tweet count for and against #BlackLivesMatter, 2018-2019"
+  ) +
+  scale_x_discrete(breaks = NULL, labels = NULL) +
+  # Specify the order for the guides
+  guides(
+    # Order indicates the order of each legend among multiple guides.
+    # The guide for 'color' will be placed before the one for 'fill'
+    color = guide_legend(order = 1), 
+    fill = guide_legend(order = 2)
+  ) +
+  theme_minimal() +
+  theme(
+    # Top-right position
+    legend.pos = c(0.875, 0.2),
+    # Elements within a guide are placed one next to the other in the same row
+    legend.direction = "horizontal",
+    # Different guides are stacked vertically
+    legend.box = "vertical",
+    # No legend title
+    legend.title = element_blank(),
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, -50, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+
+###Just 2018-2019 
+tweetcount %>%
+  filter(year %in% c("2018","2019")) %>%
+  ggplot(aes(x = ym, group = 1)) +
+  geom_line(aes(y = blm, color = "#BlackLivesMatter")) +
+  geom_line(aes(y = against, color = "#All/BlueLivesMatter")) +
+  stat_difference(aes(ymin = against, ymax = blm), alpha = 0.3) +
+  scale_color_manual(values = c("#C32E5A", "#3D85F7")) +
+  scale_fill_manual(
+    values = c(
+      colorspace::lighten("#3D85F7"), 
+      colorspace::lighten("#C32E5A"),
+      "grey60"),
+    labels = c("more BLM", "more tweets against")
+  ) +
+  # Add labels
+  labs(
+    title = "Tweet count for and against #BlackLivesMatter, 2018-2019"
+  ) +
+  scale_x_discrete(breaks = NULL, labels = NULL) +
+  # Specify the order for the guides
+  guides(
+    # Order indicates the order of each legend among multiple guides.
+    # The guide for 'color' will be placed before the one for 'fill'
+    color = guide_legend(order = 1), 
+    fill = guide_legend(order = 2)
+  ) +
+  theme_minimal() +
+  theme(
+    # Top-right position
+    legend.pos = c(0.875, 0.2),
+    # Elements within a guide are placed one next to the other in the same row
+    legend.direction = "horizontal",
+    # Different guides are stacked vertically
+    legend.box = "vertical",
+    # No legend title
+    legend.title = element_blank(),
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, -50, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  )
+
+#just 2020-2021
+tweetcount %>%
+  filter(year %in% c("2020","2021")) %>%
+  ggplot(aes(x = ym, group = 1)) +
+  geom_line(aes(y = blm, color = "#BlackLivesMatter")) +
+  geom_line(aes(y = against, color = "#All/BlueLivesMatter")) +
+  stat_difference(aes(ymin = against, ymax = blm), alpha = 0.3) +
+  scale_color_manual(values = c("#C32E5A", "#3D85F7")) +
+  scale_fill_manual(
+    values = c(
+      colorspace::lighten("#3D85F7"), 
+      colorspace::lighten("#C32E5A"),
+      "grey60"),
+    labels = c("more BLM", "more tweets against")
+  ) +
+  # Add labels
+  labs(
+    title = "Tweet count for and against #BlackLivesMatter, 2020-2021"
+  ) +
+  scale_x_discrete(breaks = NULL, labels = NULL) +
+  # Specify the order for the guides
+  guides(
+    # Order indicates the order of each legend among multiple guides.
+    # The guide for 'color' will be placed before the one for 'fill'
+    color = guide_legend(order = 1), 
+    fill = guide_legend(order = 2)
+  ) +
+  theme_minimal() +
+  theme(
+    # Top-right position
+    legend.pos = c(0.875, 0.2),
+    # Elements within a guide are placed one next to the other in the same row
+    legend.direction = "horizontal",
+    # Different guides are stacked vertically
+    legend.box = "vertical",
+    # No legend title
+    legend.title = element_blank(),
+    # Light background color
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(20, 30, 20, 30),
+    # Customize the title. Note the new font family and its larger size.
+    plot.title = element_text(
+      margin = margin(0, 0, -50, 0), 
+      size = 12, 
+      face = "bold", 
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11),
+    # Remove titles for x and y axes.
+    axis.title = element_blank(),
+    # Specify color for the tick labels along both axes 
+    axis.text = element_text(color = "grey40", size = 6),
+    # Specify face and color for the text on top of each panel/facet
+    strip.text = element_text(face = "bold", color = "grey20")
+  ) 
+
+```
+
+
+
 ## Changes in Demonstrations by Year and States
 
 Code adapted from Georgios Karamanis from Tidy Tuesday Challenge https://github.com/gkaramanis/tidytuesday/blob/master/2021/2021-week26/animal-rescues.R
@@ -401,42 +434,55 @@ Code adapted from Georgios Karamanis from Tidy Tuesday Challenge https://github.
 ###Font Settings
 library(showtext)
 library(Hmisc)
-library(geofacet)
-library(ggh4x)
+
 
 
 font_add_google("Fira Sans", family = "firasans")
 font_add_google("Lato", family = "lato")
+
+#police violence data
+policeviolence <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/policeviolence2018-2021.csv")
+
+policeviolence <- policeviolence %>%
+  group_by(Name, year) %>%
+  summarise(pvcount = n())
+
+c3allstate <- c3allstate %>%
+  left_join(policeviolence, by = c("Name" = "Name",
+                                   "year" = "year")) %>%
+  filter(year %in% c(2018,2019,2020,2021)) 
 
 
 stategeofacet <- c3allstate %>%
   ggplot(aes(x = year, group = 1)) +
   geom_line(aes(y = `2`, color = "counter-protest")) +
   geom_line(aes(y = `1`, color = "for BLM")) +
-  stat_difference(aes(ymin = `1`, ymax = `2`), alpha = .3) +
+  geom_line(aes(y = `pvcount`, color = "police violence")) +
+  #stat_difference(aes(ymin = `1`, ymax = `2`), alpha = .3) +
   facet_geo(vars(state), grid = "us_state_grid1")
 
 stategeofacet <- stategeofacet +
   # Colors for the lines
-  scale_color_manual(values = c("#C32E5A", "#3D85F7")) +
-  scale_fill_manual(
-    values = c(
-      colorspace::lighten("#C32E5A"), 
-      colorspace::lighten("#3D85F7"),
-      "grey60"),
-    labels = c("more BLM", "more counter-protest")
-  ) +
+  scale_color_manual(values = c("#C32E5A", "#3D85F7", "grey60")) +
+  #scale_fill_manual(
+   # values = c(
+    #  colorspace::lighten("#C32E5A"), 
+    #  colorspace::lighten("#3D85F7"),
+    #  "grey60"),
+   # labels = c("more BLM", "more counter-protest")
+  #) +
   # Add labels
   labs(
-    title = "Number of demonstrations \nfor and against #BlackLivesMatter \nfrom 2018-2021",
+    title = "Demonstrations for and against \n #BlackLivesMatter and Police Violence \nfrom 2018-2021",
     caption = "Source: CrowdCountingConsortium"
   ) +
+  scale_x_discrete(breaks = NULL, labels = NULL) +
   # Specify the order for the guides
   guides(
     # Order indicates the order of each legend among multiple guides.
     # The guide for 'color' will be placed before the onde for 'fill'
-    color = guide_legend(order = 1), 
-    fill = guide_legend(order = 2)
+    color = guide_legend(order = 1)#, 
+    #fill = guide_legend(order = 2)
   ) 
 
 
@@ -572,10 +618,6 @@ reddit1819all <- rbind(all2018, all2019)
 
 posts1819 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/clean1819all.csv", na.string = "")
 
-
-#random select 100 rows cause it is too much 
-#ctmdat <- sample_n(discussion2018p, 200)
-  
 ```
 
 
@@ -700,7 +742,7 @@ abline(v = 4, col = "gray60", lty = 2)
 ```
 Alright this is  10 topics
 
-*Correlated Topic Model*
+**Correlated Topic Model**
 Running 10 correlated topic model
 ```{r, eval = FALSE}
 control_CTM_VEM1 <- list(
@@ -717,7 +759,7 @@ CTM3 <- CTM(text_DTM_trimmed, k = 10, control = control_CTM_VEM1)
 CTM3
 ```
 
-*Examining the Topic Output*
+**Examining the Topic Output**
 ```{r, eval = FALSE}
 
 ## Table the documents by topics
@@ -766,8 +808,82 @@ colnames(main_topic3) <- "Main_Topic"
 print(main_topic3)
 ```
 
+2 out of the 10 themes were posts removed for violating the Subreddit rules. The remaining 8 themes for 2018-2019 Reddit discussions related to #BLM and policing are:
+1. Politics 
+2. Gun Control
+3. Police Brutality
+4. Systemic Racism
+5. Constructive Engagement
+6. Government Control
+7. Race & Crime
+8. Mass Shootings
+
 ### 2020-2021 Reddit Posts
 The process is similar to the 2018-2019 posts. The actual analyses in Python is attached in the separate pdf document. 
+
+Similarly, 2 out of the 10 themes were posts removed for violating the Subreddit rules. The remaining 8 themes for 2020-2021 Reddit discussions related to #BLM and policing are:
+1. Constructive Engagement 
+2. Protests & riots
+3. Destructive engagement
+4. Election & Politics
+5. Police Reforms
+6. Rise of White Nationalists
+7. Race & Crime
+8. Gun Control
+
+### Discussion
+
+We can see that we are still discussing many of the same topics before the summer of 2020, which means that the conversation has not changed as much but rather the number of people engaging in discussions (i.e., politics, gun control, race and crime were present throughout the years). 
+
+However, there were a few differences. For example, we saw a rise in destructive engagement in these spaces that was not the case in the year prior. For policing, we saw discussions shift from police brutality (bringing awareness to reality) to police reform (moving towards solution). In addition, in 2018-2019, conversations regarding race were mostly about systemic racism while in 2020-2021 we saw attention towards the rise of White nationalism. 
+
+**Visualizing Topic Popularity Overtime**
+
+```{r data 18-19 import}
+#this is the dataset with topics already assigned to them from python
+reddit1819 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit1819tm.csv", na.string = "")
+reddit1819$time_created <- anydate(reddit1819$time_created)
+
+reddit1819$theme <- factor(reddit1819$Topic, levels = c(0,1,2,3,4,5,6,7,8,9) ,labels = c("Politics", "Gun Control", "Removed", "Police Brutality", "Systemic Racism", "Removed2", "Constructive Engagement", "Surveillance", "Race & Crime", "Mass Shooting"))
+
+##assigning theme names
+reddit1819 <- reddit1819 %>%
+  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, body, author, author_flair, subreddit, alltext, manualtext, Topic, theme) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-")
+```
+
+
+```{r data 20-21 import}
+#this is the dataset with topics already assigned to them from python
+reddit2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021tm.csv", na.string = "")
+reddit2021$time_created <- anydate(reddit2021$time_created)
+
+reddit2021$theme <- factor(reddit2021$Topic, levels = c(0,1,2,3,4,5,6,7,8,9) ,labels = c("Constructive Engagement", "Removed", "Protest & Riot", "Destructive Engagement", "Politics", "Removed2", "Police Reform", "White Nationalism", "Race & Crime", "Gun Control"))
+
+##assigning 
+reddit2021 <- reddit2021 %>%
+  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, body, author, author_flair, subreddit, alltext, manualtext, Topic, theme) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-")
+
+#all topics
+reddit_tm <- bind_rows(reddit1819, reddit2021)
+```
+
+```{r topic over time}
+reddit_tm %>%
+  filter(!(theme == "Removed" | theme == "Removed2")) %>%
+  filter(theme %in% c("Politics", "Gun Control", "Constructive Engagement", "Race & Crime"))%>%
+  group_by(year, month, theme) %>%
+  dplyr::summarize(count = n()) %>%
+  unite(ym, year, month, sep = "-", remove = FALSE)  %>%
+  ggplot(aes(x = ym, group = 1)) +
+  geom_line(aes(y = count)) +
+  facet_wrap(~theme, ncol = 2) +
+  labs(x = NULL, y = NULL) +
+  scale_x_discrete(breaks = NULL, labels = NULL) +
+  theme_bw()
+```
+
 
 ## Sentiment Analysis
 Sentiment analysis codes were adapted from 
@@ -781,52 +897,46 @@ nrc <- get_sentiments("nrc")
 ### Sentiments across all data
 
 #### 2018-2019 Reddit Posts
-```{r data 18-19 import}
-#this is the dataset with topics already assigned to them from python
-reddit1819 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit1819tm.csv", na.string = "")
-reddit1819$time_created <- anydate(reddit1819$time_created)
-colnames(reddit1819)
-reddit1819 <- reddit1819 %>%
-  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, created, body, author, author_flair, subreddit, alltext, topictext, Topic)
-```
+
 ```{r tidy 18-19 w sentiment}
 tidy_r1819 <- reddit1819 %>%
-  unnest_tokens(word, topictext)
+  filter(!(Topic == 2 | Topic == 5)) %>%
+  unnest_tokens(word, manualtext)
 
 tidy_r1819 %>%
-  inner_join(nrc) %>%
-  group_by(sentiment, Topic) %>%
+  inner_join(get_sentiments("nrc")) %>%
+  group_by(sentiment, theme) %>%
   count(sort = TRUE)
 ```
 ```{r sentiment afinn plot}
 
 tidy_r1819 %>%
   inner_join(get_sentiments("afinn")) %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-") %>%
   unite(ym, year, month, sep = "-") %>%
   arrange(ym, .by_group = TRUE) %>%
   summarise(sentiment = sum(value),
-            Topic = Topic,
+            theme = theme,
             index = ym) %>%
-  ggplot(aes(index, sentiment, fill = Topic)) +
+  ggplot(aes(index, sentiment, fill = theme)) +
   geom_col(show.legend = FALSE) +
   xlab("")+
-  facet_wrap(~Topic, ncol = 3) +
+  facet_wrap(~theme, ncol = 3) +
   theme_bw()
 ```
 ```{r}
 tidy_r1819 %>%
   inner_join(get_sentiments("bing")) %>%
-  separate(time_created, into = c("year", "month", "date"), sep = "-", remove = FALSE) %>%
+  separate(time_created, into = c("year", "month", "date"), sep = "-") %>%
   unite(ym, year, month, sep = "-") %>%
   arrange(ym, .by_group = TRUE) %>%
-  count(Topic, index = ym, sentiment) %>%
+  count(theme, index = ym, sentiment) %>%
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
   mutate(sentiment = positive - negative) %>%
-  ggplot(aes(index, sentiment, fill = Topic)) +
+  ggplot(aes(index, sentiment, fill = theme)) +
   geom_col(show.legend = FALSE) +
   xlab("")+
-  facet_wrap(~Topic, ncol = 3) +
+  facet_wrap(~theme, ncol = 3) +
   theme_bw()
 ```
 Shows similar direction to afinn, but afinn has more variance, so I will keep afinn package
@@ -837,16 +947,16 @@ reddit2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021
 reddit2021$time_created <- anydate(reddit2021$time_created)
 colnames(reddit2021)
 reddit2021 <- reddit2021 %>%
-  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, created, body, author, author_flair, subreddit, alltext, topictext, Topic)
+  dplyr::select(id, allcomment, time_created, title, post_flair, score, upvote_ratio, comms_num, body, author, author_flair, subreddit, alltext, manualtext, Topic)
 ```
 
 ```{r tidy 20-21 data}
 tidy_r2021 <- reddit2021 %>%
-  unnest_tokens(word, topictext)
+  unnest_tokens(word, manualtext)
 ```
 ```{r}
 tidy_r2021 %>%
-  inner_join(nrc) %>%
+  inner_join(get_sentiments("nrc")) %>%
   group_by(sentiment, Topic) %>%
   count(sort = TRUE)
 ```
@@ -877,35 +987,52 @@ Run correlations?
 nrc_small <- get_sentiments("nrc") %>%
   filter(sentiment %in% c("trust", "anticipation", "joy", 
                         "fear", "anger", "disgust", "sadness"))
+reddit1819raw <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/clean1819raw.csv", na.string = "")
+reddit1819raw$time_created <- anydate(reddit1819raw$time_created)
+colnames(reddit1819raw)
+reddit1819raw <- reddit1819raw %>%
+  dplyr::select(id, time_created, finaltitle, finalcomment, post_flair, score, upvote_ratio, comms_num, title, body, author, author_flair, subreddit)
 
 #just post titles
-res2021 <- reddit2021 %>%
-  unnest_tokens(word, title) %>%
+res1819raw <- reddit1819raw %>%
+  group_by(id) %>%
+  unnest_tokens(word, finaltitle) %>%
   inner_join(nrc_small) %>%
-  group_by(sentiment, id)# %>%
+  group_by(sentiment)# %>%
   #mutate(count = n())
 
-setDT(res2021)
+setDT(res1819raw)
 #make the frame longer so that each sentiment is a column 
-res2021 <- dcast.data.table(res2021, id~sentiment, value.var= 'sentiment')
+res1819raw <- dcast.data.table(res1819raw, id~sentiment, value.var= 'sentiment')
 
-res2021 <- res2021 %>%
-  inner_join(reddit2021, by = c("id" = "id"))
-#rm(reddit2021) #for now as vector memory exhausted
-colnames(res2021)
-res2021corr <- res2021 %>%
+res1819raw <- res1819raw %>%
+  inner_join(reddit1819raw, by = c("id" = "id"))
+
+colnames(res1819raw)
+res1819corr <- res1819raw %>%
   dplyr::select(comms_num, score, upvote_ratio, joy, trust, anticipation, anger, disgust, fear, sadness)
 
-correlation_matrix <- round(cor(res2021corr),1)
-corrp.mat <- cor_pmat(res2021corr) #calculating p-vals
+correlation_matrix <- round(cor(res1819corr),1)
+corrp.mat <- cor_pmat(res1819corr) #calculating p-vals
 
 ggcorrplot(correlation_matrix, hc.order =TRUE, 
            type ="upper", p.mat = corrp.mat, insig="blank") 
 
 ```
-Fear and trust sentiments in the title are positively correlated with number of comments and upvote ratio
+Fear, sadness, anger, disgust, anticipation, and trust sentiments in the title are positively correlated with number of comments and score. Joy is negatively correlated with comment numbers. 
+```{r}
+#scatterplot by topics
 
-Disgust and sadness are negatively correlated with upvote_ratio
+res1819raw %>%
+  group_by(id) %>%
+  pivot_longer(cols = c("anger", "fear", "sadness", "disgust", "trust", "joy", "anticipation"), names_to = "sentiment", values_to = "count") %>%
+  dplyr::select(comms_num, score, upvote_ratio, count, sentiment) %>%
+  ggplot(aes(x = comms_num, y = count, color = sentiment)) +
+  geom_point(aes(fill = sentiment))  +
+  scale_colour_brewer(palette = "BuPu") 
+```
+
+
 ### Zooming in: Change My View in 2020-2021
 What about comments? 
 
@@ -918,7 +1045,7 @@ posts2021 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2021p
 cmvAllp <- rbind(posts2018, posts2019, posts2020, posts2021, fill = TRUE)
 cmvAllp <- cmvAllp[subreddit == "changemyview",]
 
-#all CMV comments
+#all  comments
 comments2018 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2018comments.csv", na.string = "")
 comments2019 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2019comments.csv", na.string = "")
 comments2020 <- fread("/Volumes/Lan's 4TB Drive/Big Data Sets/BLMReddit/reddit2020comments.csv", na.string = "")

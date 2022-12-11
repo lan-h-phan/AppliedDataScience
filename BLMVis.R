@@ -246,35 +246,51 @@ library(showtext)
 font_add_google("Fira Sans", family = "firasans")
 font_add_google("Lato", family = "lato")
 
+font_add_google("Fira Sans", family = "firasans")
+font_add_google("Lato", family = "lato")
+
+#police violence data
+policeviolence <- read_csv("/Users/lanphan/Desktop/Academics/PhD Research/GitHub-R-Codes/AppliedDataScience/policeviolence2018-2021.csv")
+
+policeviolence <- policeviolence %>%
+  group_by(Name, year) %>%
+  summarise(pvcount = n())
+
+c3allstate <- c3allstate %>%
+  left_join(policeviolence, by = c("Name" = "Name",
+                                   "year" = "year")) %>%
+  filter(year %in% c(2018,2019,2020,2021)) 
+
 
 stategeofacet <- c3allstate %>%
   ggplot(aes(x = year, group = 1)) +
   geom_line(aes(y = `2`, color = "counter-protest")) +
   geom_line(aes(y = `1`, color = "for BLM")) +
-  stat_difference(aes(ymin = `1`, ymax = `2`), alpha = .3) +
+  geom_line(aes(y = `pvcount`, color = "police violence")) +
+  #stat_difference(aes(ymin = `1`, ymax = `2`), alpha = .3) +
   facet_geo(vars(state), grid = "us_state_grid1")
 
 stategeofacet <- stategeofacet +
   # Colors for the lines
-  scale_color_manual(values = c("#3D85F7", "#C32E5A")) +
-  scale_fill_manual(
-    values = c(
-      colorspace::lighten("#3D85F7"), 
-      colorspace::lighten("#C32E5A"),
-      "grey60"),
-    labels = c("more BLM", "more counter-protest")
-  ) +
+  scale_color_manual(values = c("#C32E5A", "#3D85F7", "grey60")) +
+  #scale_fill_manual(
+  # values = c(
+  #  colorspace::lighten("#C32E5A"), 
+  #  colorspace::lighten("#3D85F7"),
+  #  "grey60"),
+  # labels = c("more BLM", "more counter-protest")
+  #) +
   # Add labels
   labs(
-    title = "Number of demonstrations \nfor and against #BlackLivesMatter \nfrom 2018-2021",
+    title = "Demonstrations for and against \n #BlackLivesMatter and Police Violence \nfrom 2018-2021",
     caption = "Source: CrowdCountingConsortium"
   ) +
   # Specify the order for the guides
   guides(
     # Order indicates the order of each legend among multiple guides.
     # The guide for 'color' will be placed before the onde for 'fill'
-    color = guide_legend(order = 1), 
-    fill = guide_legend(order = 2)
+    color = guide_legend(order = 1)#, 
+    #fill = guide_legend(order = 2)
   ) 
 
 
